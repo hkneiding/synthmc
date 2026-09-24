@@ -1,0 +1,24 @@
+# Raw source datasets - large, externally sourced, not meant to be versioned
+/BOSLig/
+/BOSTMC/
+/tmQM/
+
+# Built corpus artifacts and other generated/scratch output
+*.pkl
+/failed_examples.xyz
+
+# Old retired code, kept on disk for reference but not tracked
+/legacy/
+
+# Claude Code project-local state
+/.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS
+.DS_Store
