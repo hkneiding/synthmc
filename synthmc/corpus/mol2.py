@@ -7,10 +7,9 @@ from __future__ import annotations
 
 from rdkit import Chem, RDLogger
 
-RDLogger.DisableLog("rdApp.*")
+from synthmc.common.sanitize import SANITIZE_SANS_KEKULIZATION
 
-# Ops to skip on the salvage retry below - see parse_mol2's docstring.
-_SANITIZE_SANS_KEKULIZATION = Chem.SANITIZE_ALL ^ Chem.SANITIZE_KEKULIZE ^ Chem.SANITIZE_SETAROMATICITY
+RDLogger.DisableLog("rdApp.*")
 
 
 def parse_mol2(mol2_text: str) -> Chem.Mol:
@@ -34,7 +33,7 @@ def parse_mol2(mol2_text: str) -> Chem.Mol:
         Chem.SanitizeMol(mol)
     except Chem.KekulizeException:
         mol = Chem.MolFromMol2Block(mol2_text, sanitize=False)
-        Chem.SanitizeMol(mol, sanitizeOps=_SANITIZE_SANS_KEKULIZATION)
+        Chem.SanitizeMol(mol, sanitizeOps=SANITIZE_SANS_KEKULIZATION)
     return mol
 
 

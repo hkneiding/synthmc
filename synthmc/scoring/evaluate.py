@@ -37,6 +37,7 @@ from synthmc.common.elements import covalent_radius
 from synthmc.common.environment import site_bulk, site_environment
 from synthmc.common.fingerprint import morgan_fingerprint
 from synthmc.common.graph_utils import group_by_mutual_bonding
+from synthmc.common.sanitize import SANITIZE_MINIMAL, SANITIZE_SANS_KEKULIZATION
 from synthmc.corpus.environment_corpus import RADII, EnvironmentCorpus
 from synthmc.corpus.ligand_corpus import LigandCorpus
 from synthmc.corpus.steric_corpus import STERIC_RADIUS, StericCorpus
@@ -51,6 +52,38 @@ RDLogger.DisableLog("rdApp.*")
 
 _KEEP_EXPLICIT_HS = Chem.SmilesParserParams()
 _KEEP_EXPLICIT_HS.removeHs = False  # MolFromSmiles defaults to stripping explicit [H] atoms right back out
+
+_KEEP_EXPLICIT_HS_UNSANITIZED = Chem.SmilesParserParams()
+_KEEP_EXPLICIT_HS_UNSANITIZED.removeHs = False
+_KEEP_EXPLICIT_HS_UNSANITIZED.sanitize = False
+
+
+def _parse_ligand_smiles(smiles_in: str) -> Chem.Mol:
+    """Parse `smiles_in` with normal full sanitization; on failure, retry
+    with the same cascading fallback common/environment.py already uses
+    (full -> skip kekulization -> also skip valence/property checking - see
+    common/sanitize.py for both tiers). Needed for the same reason there:
+    structures corpus/mol2.py already tolerated on the way into the corpus
+    (Cp-type fragments, unusual NHC/phosphazene-type valence cases - all
+    from BOS-Lig's zero-formal-charge mol2 convention) have to be tolerated
+    again here, since a plain Chem.MolFromSmiles with default sanitization
+    has none of that leniency. Only a genuine syntax error, or a sanitize
+    failure the last (most permissive) tier still can't get past, raises."""
+    mol = Chem.MolFromSmiles(smiles_in, _KEEP_EXPLICIT_HS)
+    if mol is not None:
+        return mol
+
+    mol = Chem.MolFromSmiles(smiles_in, _KEEP_EXPLICIT_HS_UNSANITIZED)
+    if mol is None:
+        raise ValueError(f"could not parse SMILES {smiles_in!r}")
+    try:
+        Chem.SanitizeMol(mol)
+    except Chem.MolSanitizeException:
+        try:
+            Chem.SanitizeMol(mol, sanitizeOps=SANITIZE_SANS_KEKULIZATION)
+        except Chem.MolSanitizeException:
+            Chem.SanitizeMol(mol, sanitizeOps=SANITIZE_MINIMAL)
+    return mol
 
 
 @dataclass
@@ -141,9 +174,7 @@ def evaluate_complex(
     cn = 0
 
     for smiles_in, binding_atoms in ligands:
-        mol = Chem.MolFromSmiles(smiles_in, _KEEP_EXPLICIT_HS)
-        if mol is None:
-            raise ValueError(f"could not parse SMILES {smiles_in!r}")
+        mol = _parse_ligand_smiles(smiles_in)
         symbols = [atom.GetSymbol() for atom in mol.GetAtoms()]
         smiles = Chem.MolToSmiles(mol)  # canonicalize - the caller's own SMILES needn't already be
 

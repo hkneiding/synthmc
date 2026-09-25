@@ -33,27 +33,9 @@ from __future__ import annotations
 
 from rdkit import Chem, RDLogger
 
+from synthmc.common.sanitize import SANITIZE_MINIMAL, SANITIZE_SANS_KEKULIZATION
+
 RDLogger.DisableLog("rdApp.*")
-
-# First fallback: same salvage used throughout this project (mol2.py,
-# ligand_corpus.py) for the same underlying reason - a radius cut through
-# an aromatic ring routinely leaves atoms that can't be kekulized as a
-# standalone fragment, even though the original whole molecule was
-# perfectly valid.
-_SANITIZE_SANS_KEKULIZATION = Chem.SANITIZE_ALL ^ Chem.SANITIZE_KEKULIZE ^ Chem.SANITIZE_SETAROMATICITY
-
-# Second, last-resort fallback: also skip valence/property checking. Found
-# a real (if rare) source-data case this needs: an O atom with formal
-# charge -2 bonded via an RDKit "unspecified" bond type (an unusual
-# phosphazene-type fragment in one BOS-Lig entry) - valid in the original
-# whole molecule's own sanitize context, but which a freshly-sanitized
-# isolated fragment can reject on valence grounds alone, independent of
-# kekulization. This needs to run over ~150k complexes without crashing on
-# rare-but-real oddities in the source data, so the final fallback accepts
-# the fragment as-is rather than raising - still a valid, comparable
-# canonical string for this exact-match precedent-counting purpose even if
-# not a chemically pristine independent molecule.
-_SANITIZE_MINIMAL = Chem.SANITIZE_ALL ^ Chem.SANITIZE_KEKULIZE ^ Chem.SANITIZE_SETAROMATICITY ^ Chem.SANITIZE_PROPERTIES
 
 
 def _atoms_within_radius(mol: Chem.Mol, group: list[int], radius: int) -> set[int]:
@@ -115,9 +97,9 @@ def site_environment(mol: Chem.Mol, group: list[int], radius: int) -> str:
         Chem.SanitizeMol(frag)
     except Chem.MolSanitizeException:
         try:
-            Chem.SanitizeMol(frag, sanitizeOps=_SANITIZE_SANS_KEKULIZATION)
+            Chem.SanitizeMol(frag, sanitizeOps=SANITIZE_SANS_KEKULIZATION)
         except Chem.MolSanitizeException:
-            Chem.SanitizeMol(frag, sanitizeOps=_SANITIZE_MINIMAL)
+            Chem.SanitizeMol(frag, sanitizeOps=SANITIZE_MINIMAL)
     return Chem.MolToSmiles(frag)
 
 
