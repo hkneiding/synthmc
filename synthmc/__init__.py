@@ -7,11 +7,8 @@ Package layout:
   corpus/  - builds/represents the precedent corpora from BOS-Lig + BOS-TMC:
              LigandCorpus (4 per-ligand levels) and EnvironmentCorpus (the
              whole-complex full coordination-environment precedent).
-  scoring/ - the core API: evaluate_complex(metal, ligands, corpus) against
-             a corpus, given chemistry you already know.
-  xyz/     - optional helper layer: detects a metal + ligands + binding
-             atoms from a raw xyz structure, then calls scoring.evaluate_complex.
-             Not the primary interface - see xyz/adapter.py.
+  scoring/ - the API: evaluate_complex(metal, ligands, corpus) against a
+             corpus, given chemistry you already know.
 """
 
 from synthmc.corpus import (
@@ -32,7 +29,6 @@ from synthmc.scoring import (
     find_closest_precedent,
     score_synthesizability,
 )
-from synthmc.xyz import evaluate_xyz_file, evaluate_xyz_structure
 
 __all__ = [
     "LigandCorpus",
@@ -46,9 +42,7 @@ __all__ = [
     "StericMatch",
     "SynthesizabilityResult",
     "score_synthesizability",  # combines the 3 precedent terms into one overall score
-    "evaluate_complex",  # primary interface - chemistry already known
-    "evaluate_xyz_structure",  # helper: detect chemistry from a raw xyz structure, then evaluate_complex
-    "evaluate_xyz_file",  # helper: evaluate_xyz_structure over every frame in a tmQM-format xyz file
+    "evaluate_complex",  # the interface - chemistry already known
     "PrecedentMatch",
     "find_closest_precedent",
 ]

@@ -23,12 +23,10 @@ project maintains (see scoring/matching.py's module docstring), with one
 deliberate exception: LigandPrecedent.precedent_score itself already scores
 "no corpus data for this specific key" as a real 0 rather than excluding it
 (a documented-but-undiscovered combination is treated the same as a
-confirmed-absent one - see evaluate.py). What still yields None here is a
-genuinely unevaluated ligand: simply not passing an EnvironmentCorpus/
-StericCorpus to evaluate_complex, or (xyz-derived results only) a fragment
-that failed *detection* before evaluate_complex ever saw it - see
-xyz/adapter.py. evaluate_complex itself never produces a partial
-LigandPrecedent anymore; it raises instead (see its docstring)."""
+confirmed-absent one - see evaluate.py). What still yields None here is
+simply not passing an EnvironmentCorpus/StericCorpus to evaluate_complex -
+evaluate_complex never produces a partial result otherwise; it raises
+instead (see its docstring)."""
 
 from __future__ import annotations
 
@@ -59,12 +57,10 @@ class SynthesizabilityResult:
         print(header)
         print()
 
-        n_failed = sum(1 for lig in s.ligands if lig.error is not None)
         print(f"[1] Ligand precedent: {_fmt(self.ligand_score)}")
-        print(f"      {len(s.ligands)} ligand(s), {n_failed} failed detection (xyz-derived results only)")
+        print(f"      {len(s.ligands)} ligand(s)")
         for lig in s.ligands:
-            label = lig.formula if lig.smiles is not None else f"? ({lig.error})"
-            print(f"      {label:20s} precedent_score={_fmt(lig.precedent_score)}")
+            print(f"      {lig.formula:20s} precedent_score={_fmt(lig.precedent_score)}")
         print()
 
         print(f"[2] Coordination environment precedent: {_fmt(self.environment_score)}")
@@ -84,13 +80,7 @@ def score_synthesizability(structure: StructureResult) -> SynthesizabilityResult
     ligand_scores = [lig.precedent_score for lig in structure.ligands if lig.precedent_score is not None]
     ligand_score = statistics.mean(ligand_scores) if ligand_scores else None
 
-    # A detection failure (xyz-derived results only - see xyz/adapter.py) fills
-    # full_environment_percentile/full_environment_and_metal_percentile with None for every
-    # radius rather than leaving the dict empty, which would otherwise look like "checked, no
-    # precedent" rather than "couldn't check" - excluded here the same way xyz/adapter.py
-    # documents it.
-    any_ligand_failed = any(lig.error is not None for lig in structure.ligands)
-    if structure.full_environment_percentile and not any_ligand_failed:
+    if structure.full_environment_percentile:
         env_values = list(structure.full_environment_percentile.values()) + list(
             structure.full_environment_and_metal_percentile.values()
         )

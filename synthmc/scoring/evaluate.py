@@ -4,18 +4,9 @@ docstring for the 4 per-ligand levels) and, optionally, an
 EnvironmentCorpus (see its module docstring for the whole-complex
 full-coordination-environment precedent).
 
-This is deliberately the primary interface, not xyz-based detection
-(xyz/adapter.py). The intended use case is evaluating in-silico-built TMCs,
-where the ligands and their binding atoms are already known by construction
-- you chose them to build the candidate. Detecting them from a raw xyz
-geometry instead is a separate, harder inverse problem (bond perception,
-metal-donor distance calibration, hapticity clustering - all of
-xyz/fragments.py's tolerance-tuning) that a caller who already knows their
-own chemistry shouldn't have to pay for or trust. xyz-based detection stays
-available as a convenience layer for the other real use case this project
-also needs (evaluating existing structures from a database like tmQM, where
-nothing is known in advance), but that's a separate concern from actually
-determining precedent, kept out of this module on purpose.
+This is the primary interface: the intended use case is evaluating
+in-silico-built TMCs, where the ligands and their binding atoms are already
+known by construction - you chose them to build the candidate.
 
 Each of the 3 precedent terms (ligand, coordination environment, steric) is
 its own 0-1-ish signal - see matching.py for how ligand precedent's 4 levels
@@ -101,12 +92,8 @@ class LigandPrecedent:
     # excluding it - a documented-but-undiscovered combination is scored the same as a
     # confirmed-absent one, deliberately, rather than left out of the average. Always a real
     # float when evaluate_complex produces this (every ligand it returns parsed successfully -
-    # see its docstring); only None on the detection-failure stubs xyz/adapter.py builds.
+    # see its docstring).
     precedent_score: float | None = None
-    atom_indices: list[int] | None = None  # xyz atom indices - set only by xyz/adapter.py, None from evaluate_complex directly
-    # set only by xyz/adapter.py, for a fragment that failed *detection* (never produced by
-    # evaluate_complex itself - a ligand it can't parse raises instead, see its docstring)
-    error: str | None = None
 
 
 @dataclass
@@ -120,24 +107,20 @@ class StericMatch:
 class StructureResult:
     metal_symbol: str
     ligands: list[LigandPrecedent] = field(default_factory=list)
-    identifier: str = ""  # only meaningful for xyz-derived results (e.g. a CSD refcode) - see xyz/adapter.py
+    identifier: str = ""  # optional caller-supplied label (e.g. a CSD refcode), not used internally
     # radius -> precedent count for this whole complex's joint donor-site environment - see
-    # environment_corpus.py. Empty dict if no EnvironmentCorpus was passed; xyz/adapter.py
-    # additionally forces every radius to None here on a detection failure (a partial joint
-    # environment isn't a meaningful lookup key) - evaluate_complex itself never does, since
-    # a ligand it can't parse raises instead of producing a partial result.
+    # environment_corpus.py. Empty dict if no EnvironmentCorpus was passed.
     full_environment: dict[int, int | None] = field(default_factory=dict)
     full_environment_and_metal: dict[int, int | None] = field(default_factory=dict)
     # radius -> how common that joint environment is, relative to every joint environment on
     # record at that radius/metal-scope (environment_percentile - count_percentile applied to
     # the match above, 0.0 if no match at all, since a non-match's count is 0 by definition).
-    # Same emptiness/force-to-None rules as full_environment above - a non-match here is a real
-    # 0.0, not None; only "never computed at all" (no corpus, or xyz detection failure) is None.
+    # Same emptiness rule as full_environment above - a non-match here is a real 0.0, not None;
+    # only "never computed at all" (no EnvironmentCorpus passed) is None.
     full_environment_percentile: dict[int, float | None] = field(default_factory=dict)
     full_environment_and_metal_percentile: dict[int, float | None] = field(default_factory=dict)
-    # None if no StericCorpus was passed, the metal has no tabulated covalent radius, no corpus
-    # complex shares this coordination number, or (xyz/adapter.py only) detection failed for
-    # some fragment - see steric_corpus.py.
+    # None if no StericCorpus was passed, the metal has no tabulated covalent radius, or no
+    # corpus complex shares this coordination number - see steric_corpus.py.
     steric: StericMatch | None = None
 
 
@@ -172,10 +155,7 @@ def evaluate_complex(
     Raises if any ligand's SMILES can't be parsed - this function is for
     chemistry you already know, so a parse failure means the input is
     wrong, not that this ligand happened to be unusual; it shouldn't be
-    silently swallowed and mistaken for a real (if weak) precedent score.
-    xyz-detected structures go through xyz/adapter.py instead, which is the
-    layer that tolerates and reports per-fragment failures - see its module
-    docstring."""
+    silently swallowed and mistaken for a real (if weak) precedent score."""
     results = []
     envs: dict[int, list[str]] = {r: [] for r in RADII}
     total_bulk = 0

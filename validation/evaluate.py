@@ -43,9 +43,9 @@ class HoldoutValidationResult:
     n_reconstructed: int
     # complexes whose reconstructed ligands were dropped because evaluate_complex raised
     # (a real parse failure, e.g. the pre-existing kekulization edge case seen in some
-    # BOS-Lig SMILES - see project conversation) - evaluate_complex now raises rather than
-    # silently degrading (see its docstring), so this batch-query loop has to tolerate that
-    # itself, the same way xyz/adapter.py tolerates per-fragment detection failures.
+    # BOS-Lig SMILES - see project conversation) - evaluate_complex raises rather than
+    # silently degrading (see its docstring), so this batch-query loop has to tolerate
+    # that itself.
     n_eval_failed: int = 0
     # per level: mean/median PrecedentMatch.score across every ligand instance that got a
     # match at all (None only means "no corpus data for this key", now a rare edge case
