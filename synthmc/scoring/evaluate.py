@@ -34,7 +34,7 @@ from rdkit import Chem, RDLogger
 
 from synthmc.common.donor_signature import donor_signature
 from synthmc.common.elements import covalent_radius
-from synthmc.common.environment import site_bulk, site_environment
+from synthmc.common.environment import ligand_bulk, site_environment
 from synthmc.common.fingerprint import morgan_fingerprint
 from synthmc.common.graph_utils import group_by_mutual_bonding
 from synthmc.common.sanitize import SANITIZE_MINIMAL, SANITIZE_SANS_KEKULIZATION
@@ -43,6 +43,7 @@ from synthmc.corpus.ligand_corpus import LigandCorpus
 from synthmc.corpus.steric_corpus import STERIC_RADIUS, StericCorpus
 from synthmc.scoring.matching import (
     PrecedentMatch,
+    environment_percentile,
     find_closest_precedent,
     find_environment_count,
     find_steric_plausibility,
@@ -127,6 +128,13 @@ class StructureResult:
     # a ligand it can't parse raises instead of producing a partial result.
     full_environment: dict[int, int | None] = field(default_factory=dict)
     full_environment_and_metal: dict[int, int | None] = field(default_factory=dict)
+    # radius -> how common that joint environment is, relative to every joint environment on
+    # record at that radius/metal-scope (environment_percentile - count_percentile applied to
+    # the match above, 0.0 if no match at all, since a non-match's count is 0 by definition).
+    # Same emptiness/force-to-None rules as full_environment above - a non-match here is a real
+    # 0.0, not None; only "never computed at all" (no corpus, or xyz detection failure) is None.
+    full_environment_percentile: dict[int, float | None] = field(default_factory=dict)
+    full_environment_and_metal_percentile: dict[int, float | None] = field(default_factory=dict)
     # None if no StericCorpus was passed, the metal has no tabulated covalent radius, no corpus
     # complex shares this coordination number, or (xyz/adapter.py only) detection failed for
     # some fragment - see steric_corpus.py.
@@ -189,9 +197,8 @@ def evaluate_complex(
                     envs[r].append(site_environment(mol, group, r))
 
         if steric_corpus is not None:
-            for group in groups:
-                total_bulk += site_bulk(mol, group, STERIC_RADIUS)
-                cn += 1
+            total_bulk += ligand_bulk(mol, groups, STERIC_RADIUS)
+            cn += len(groups)
 
         by_ligand = find_closest_precedent(smiles, fp, corpus.by_ligand, corpus.count_distribution.get("by_ligand"))
         by_ligand_and_metal = find_closest_precedent(
@@ -224,12 +231,20 @@ def evaluate_complex(
 
     full_environment: dict[int, int | None] = {}
     full_environment_and_metal: dict[int, int | None] = {}
+    full_environment_percentile: dict[int, float | None] = {}
+    full_environment_and_metal_percentile: dict[int, float | None] = {}
     if environment_corpus is not None:
         for r in RADII:
             key = tuple(sorted(envs[r]))
             full_environment[r] = find_environment_count(key, environment_corpus.by_environment[r])
             full_environment_and_metal[r] = find_environment_count(
                 (metal, key), environment_corpus.by_environment_and_metal[r]
+            )
+            full_environment_percentile[r] = environment_percentile(
+                key, environment_corpus.by_environment[r], environment_corpus.count_distribution[r]
+            )
+            full_environment_and_metal_percentile[r] = environment_percentile(
+                (metal, key), environment_corpus.by_environment_and_metal[r], environment_corpus.count_distribution_and_metal[r]
             )
 
     steric: StericMatch | None = None
@@ -250,6 +265,8 @@ def evaluate_complex(
         identifier=identifier,
         full_environment=full_environment,
         full_environment_and_metal=full_environment_and_metal,
+        full_environment_percentile=full_environment_percentile,
+        full_environment_and_metal_percentile=full_environment_and_metal_percentile,
         steric=steric,
     )
 

@@ -4,14 +4,17 @@ record - the third additive scoring term alongside ligand precedent
 (ligand_corpus.py) and coordination-environment precedent
 (environment_corpus.py).
 
-"Bulk" here is purely topological (common/environment.py's site_bulk: heavy
-atom count out to STERIC_RADIUS bonds from each donor site, summed across
-every donor site in the complex, including repeated ligands) - no conformer
-generation, no idealized coordination polyhedron, no 3D geometry at all.
-STERIC_RADIUS=2 corresponds to "out to the 3rd coordination sphere counted
-from the metal": the donor atoms themselves (bonded directly to the metal)
-are the 1st sphere, so they sit at site_environment/site_bulk's radius=0;
-radius=1 reaches the 2nd sphere; radius=2 reaches the 3rd.
+"Bulk" here is purely topological (common/environment.py's ligand_bulk: heavy
+atom count out to STERIC_RADIUS bonds from any of a ligand's donor sites,
+de-duplicated so an atom shared between two nearby sites' neighborhoods -
+routine for a close-bite multidentate ligand - counts once, not once per
+site that reaches it; summed across every ligand in the complex, including
+repeated ligands) - no conformer generation, no idealized coordination
+polyhedron, no 3D geometry at all. STERIC_RADIUS=2 corresponds to "out to
+the 3rd coordination sphere counted from the metal": the donor atoms
+themselves (bonded directly to the metal) are the 1st sphere, so they sit at
+site_environment/ligand_bulk's radius=0; radius=1 reaches the 2nd sphere;
+radius=2 reaches the 3rd.
 
 Total bulk is normalized by the metal's covalent radius before being
 compared across complexes - a metal with a longer covalent radius holds its
@@ -30,6 +33,27 @@ sparsity problem the held-out environment test surfaced for rare metals.
 The covalent-radius normalization is what lets metal identity influence the
 comparison without fragmenting the reference population that way.
 
+A (metal, CN)-bucketed variant (with backoff to this pooled corpus below a
+minimum sample size) was built and held-out-validated as an alternative: it
+measurably fixed a real, explicable distortion for specific metals whose
+characteristic ligand bulk differs from the CN-pooled average for genuine
+chemical reasons (Rh/Ir especially, heavily represented in BOS-TMC by
+bulky-phosphine/Cp* homogeneous-catalysis complexes, so their real,
+well-precedented chemistry reads as implausibly bulky against a pool
+dominated by metals carrying much smaller routine ligands). Rejected anyway
+in favor of this single pooled distribution: the bucketed version traded
+that per-metal fix for a harder-to-reason-about mechanism overall (a hard
+sample-size cutoff with no interpolation, so two metal/CN cells of nearly
+identical size can be scored against entirely different reference
+populations depending which side of the threshold they fall on) and a
+small but real degradation in aggregate calibration (see scoring/matching.py's
+find_steric_plausibility docstring and the validation writeup). One clean,
+uniformly-defined reference population was judged more valuable than a
+locally-more-accurate but structurally more complex one, especially since
+the rejected alternative's failure mode (Rh/Ir reading as sterically
+atypical) is itself well understood and can be reasoned about directly
+rather than silently absorbed into the score.
+
 See scoring/matching.py's find_steric_plausibility for how a query value is
 turned into a 0-1 score from this corpus (a one-sided empirical survival
 function, not a two-sided z-score - see that function's docstring for why).
@@ -47,7 +71,7 @@ import pandas as pd
 from rdkit import RDLogger
 
 from synthmc.common.elements import covalent_radius
-from synthmc.common.environment import site_bulk
+from synthmc.common.environment import ligand_bulk
 from synthmc.corpus.bostmc import load_complexes
 from synthmc.corpus.complex_ligands import reconstruct_ligand_multiset
 from synthmc.corpus.donor_sites import _strip_metal_dummy
@@ -147,9 +171,8 @@ def build_steric_corpus(
         for complex_ligand in resolved:
             mol, groups, _ = parsed[candidate_ghs[complex_ligand.candidate_index]]
             for _ in range(complex_ligand.multiplicity):
-                for group in groups:
-                    total_bulk += site_bulk(mol, group, STERIC_RADIUS)
-                    cn += 1
+                total_bulk += ligand_bulk(mol, groups, STERIC_RADIUS)
+                cn += len(groups)
 
         corpus.by_cn.setdefault(cn, []).append(total_bulk / r_metal)
         corpus.n_complexes_used += 1

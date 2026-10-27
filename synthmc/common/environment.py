@@ -69,8 +69,32 @@ def site_bulk(mol: Chem.Mol, group: list[int], radius: int) -> int:
     the same atom set site_environment uses, with no conformer generation
     or 3D geometry involved. See corpus/steric_corpus.py and
     scoring/matching.py's find_steric_plausibility for how this is
-    aggregated and normalized into the steric-plausibility score term."""
+    aggregated and normalized into the steric-plausibility score term.
+
+    Only correct to sum across a ligand's own multiple donor sites when
+    their radius-`radius` neighborhoods can't overlap - for a multidentate
+    ligand whose sites are close enough together that they do, use
+    ligand_bulk instead, which de-duplicates shared atoms rather than
+    counting them once per site that reaches them."""
     env_atoms = _atoms_within_radius(mol, group, radius)
+    return sum(1 for i in env_atoms if mol.GetAtomWithIdx(i).GetAtomicNum() > 1)
+
+
+def ligand_bulk(mol: Chem.Mol, groups: list[list[int]], radius: int) -> int:
+    """Heavy-atom count (explicit H excluded) within `radius` bonds of
+    *any* of a ligand's donor sites, counting each atom once even if it
+    falls within range of more than one site - the de-duplicated version of
+    summing site_bulk independently per site, which double-counts any atom
+    shared between two nearby sites' neighborhoods (routine for a
+    multidentate ligand whose donor atoms are only a few bonds apart, e.g.
+    acac, bipy, en-type chelates). Different ligands never need this
+    de-duplication against each other: each is parsed as its own
+    independent Mol with a disjoint atom index space, and the radius search
+    is bond-based, so there's no graph path from one ligand's atoms into
+    another's regardless of real 3D proximity."""
+    env_atoms: set[int] = set()
+    for group in groups:
+        env_atoms |= _atoms_within_radius(mol, group, radius)
     return sum(1 for i in env_atoms if mol.GetAtomWithIdx(i).GetAtomicNum() > 1)
 
 
@@ -103,4 +127,4 @@ def site_environment(mol: Chem.Mol, group: list[int], radius: int) -> str:
     return Chem.MolToSmiles(frag)
 
 
-__all__ = ["site_environment", "site_bulk"]
+__all__ = ["site_environment", "site_bulk", "ligand_bulk"]
