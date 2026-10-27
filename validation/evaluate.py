@@ -20,6 +20,24 @@ def _fmt(x: float | None) -> str:
 
 
 @dataclass
+class PerComplexRecord:
+    """One row per held-out complex - refcode-identified and aligned across
+    all four scores (unlike the separate synth_*_values lists above, which
+    are each independently filtered to non-None and so aren't safely
+    index-aligned with each other in general). Used for plots that need to
+    relate scores to each other or to metadata (metal, CN), or that need to
+    name a specific example."""
+
+    refcode: str
+    metal: str
+    cn: int | None
+    ligand_score: float | None
+    environment_score: float | None
+    steric_score: float | None
+    overall_score: float | None
+
+
+@dataclass
 class HoldoutValidationResult:
     n_holdout: int
     n_reconstructed: int
@@ -35,6 +53,9 @@ class HoldoutValidationResult:
     ligand_score_mean: dict[str, float | None] = field(default_factory=dict)
     ligand_score_median: dict[str, float | None] = field(default_factory=dict)
     ligand_n_no_data: dict[str, int] = field(default_factory=dict)  # instances with no bucket at all for this level
+    # raw per-ligand-instance values behind ligand_score_mean/median above, one list per level,
+    # for the per-level distribution plots
+    ligand_score_values: dict[str, list[float]] = field(default_factory=dict)
     # mean/median of LigandPrecedent.precedent_score (the 4-level average) across every ligand instance
     ligand_combined_score_mean: float | None = None
     ligand_combined_score_median: float | None = None
@@ -58,6 +79,17 @@ class HoldoutValidationResult:
     synth_steric_score_median: float | None = None
     synth_overall_score_mean: float | None = None
     synth_overall_score_median: float | None = None
+    # raw per-complex values behind the means/medians above, for plotting distributions
+    synth_ligand_score_values: list[float] = field(default_factory=list)
+    synth_environment_score_values: list[float] = field(default_factory=list)
+    synth_overall_score_values: list[float] = field(default_factory=list)
+    # per-radius percentile values behind synth_environment_score_values's per-complex
+    # average (StructureResult.full_environment_percentile / full_environment_and_metal_percentile,
+    # Section 3b) - kept separately per radius for the per-level distribution plots
+    environment_percentile_values: dict[int, list[float]] = field(default_factory=dict)
+    environment_and_metal_percentile_values: dict[int, list[float]] = field(default_factory=dict)
+    # one aligned, refcode-identified row per held-out complex - see PerComplexRecord
+    per_complex: list[PerComplexRecord] = field(default_factory=list)
 
 
 def run_holdout_validation(
@@ -69,6 +101,8 @@ def run_holdout_validation(
 
     env_hits = {r: 0 for r in RADII}
     env_metal_hits = {r: 0 for r in RADII}
+    env_percentile_values: dict[int, list[float]] = {r: [] for r in RADII}
+    env_metal_percentile_values: dict[int, list[float]] = {r: [] for r in RADII}
 
     steric_values: list[float] = []
     n_eval_failed = 0
@@ -77,6 +111,7 @@ def run_holdout_validation(
     synth_environment_scores: list[float] = []
     synth_steric_scores: list[float] = []
     synth_overall_scores: list[float] = []
+    per_complex: list[PerComplexRecord] = []
 
     for rc in reconstructed.values():
         try:
@@ -105,6 +140,12 @@ def run_holdout_validation(
                 env_hits[r] += 1
             if result.full_environment_and_metal.get(r) is not None:
                 env_metal_hits[r] += 1
+            p = result.full_environment_percentile.get(r)
+            if p is not None:
+                env_percentile_values[r].append(p)
+            p_metal = result.full_environment_and_metal_percentile.get(r)
+            if p_metal is not None:
+                env_metal_percentile_values[r].append(p_metal)
 
         if result.steric is not None:
             steric_values.append(result.steric.plausibility)
@@ -119,6 +160,18 @@ def run_holdout_validation(
         if synth.overall_score is not None:
             synth_overall_scores.append(synth.overall_score)
 
+        per_complex.append(
+            PerComplexRecord(
+                refcode=rc.refcode,
+                metal=result.metal_symbol,
+                cn=result.steric.cn if result.steric is not None else None,
+                ligand_score=synth.ligand_score,
+                environment_score=synth.environment_score,
+                steric_score=synth.steric_score,
+                overall_score=synth.overall_score,
+            )
+        )
+
     n_reconstructed = len(reconstructed)
     out = HoldoutValidationResult(n_holdout=n_holdout, n_reconstructed=n_reconstructed, n_eval_failed=n_eval_failed)
 
@@ -127,6 +180,7 @@ def run_holdout_validation(
         out.ligand_score_mean[level] = statistics.mean(values) if values else None
         out.ligand_score_median[level] = statistics.median(values) if values else None
         out.ligand_n_no_data[level] = ligand_no_data[level]
+        out.ligand_score_values[level] = values
 
     if combined_scores:
         out.ligand_combined_score_mean = statistics.mean(combined_scores)
@@ -155,6 +209,13 @@ def run_holdout_validation(
     if synth_overall_scores:
         out.synth_overall_score_mean = statistics.mean(synth_overall_scores)
         out.synth_overall_score_median = statistics.median(synth_overall_scores)
+
+    out.synth_ligand_score_values = synth_ligand_scores
+    out.synth_environment_score_values = synth_environment_scores
+    out.synth_overall_score_values = synth_overall_scores
+    out.environment_percentile_values = env_percentile_values
+    out.environment_and_metal_percentile_values = env_metal_percentile_values
+    out.per_complex = per_complex
 
     return out
 
@@ -201,4 +262,4 @@ def print_report(result: HoldoutValidationResult) -> None:
     print(f"  overall_score     mean={_fmt(result.synth_overall_score_mean)}  median={_fmt(result.synth_overall_score_median)}")
 
 
-__all__ = ["HoldoutValidationResult", "run_holdout_validation", "print_report"]
+__all__ = ["HoldoutValidationResult", "PerComplexRecord", "run_holdout_validation", "print_report"]

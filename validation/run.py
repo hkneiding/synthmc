@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import pickle
 import sys
 import time
 from pathlib import Path
@@ -22,7 +23,7 @@ from validation.evaluate import print_report, run_holdout_validation  # noqa: E4
 from validation.reconstruct import reconstruct_complexes  # noqa: E402
 from validation.split import make_holdout_split  # noqa: E402
 
-HOLDOUT_SIZE = 300
+HOLDOUT_SIZE = 15287  # ~10% of BOS-TMC's 152,874 unambiguous single-component refcodes
 SEED = 0
 
 
@@ -52,6 +53,11 @@ def main():
 
     result = run_holdout_validation(reconstructed, corpora, n_holdout=len(holdout_refcodes))
     print_report(result)
+
+    out_path = ROOT / "validation_result.pkl"
+    with open(out_path, "wb") as f:
+        pickle.dump(result, f)
+    print(f"\nSaved full result (including raw per-complex values) to {out_path}")
 
 
 if __name__ == "__main__":
