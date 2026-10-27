@@ -85,6 +85,8 @@ def evaluate_xyz_structure(
         # signal (empty dict) evaluate_complex produces when environment_corpus is None
         result.full_environment = {r: None for r in RADII}
         result.full_environment_and_metal = {r: None for r in RADII}
+        result.full_environment_percentile = {r: None for r in RADII}
+        result.full_environment_and_metal_percentile = {r: None for r in RADII}
 
     # Splice detected ligands' results back into original fragment order, with a stub
     # LigandPrecedent (all None) for each fragment that failed detection.

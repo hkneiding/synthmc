@@ -6,8 +6,8 @@ key. See complex_ligands.py for how a complex's complete ligand multiset
 (respecting repeated ligands) gets reconstructed from BOS-TMC +  BOS-Lig,
 and common/environment.py for what a "donor-site environment" is.
 
-Radii 0-3 (see RADII), each in a metal-agnostic and metal-specific form
-(8 levels total, mirroring the existing per-ligand corpus's 2x2 structure
+Radii 0-4 (see RADII), each in a metal-agnostic and metal-specific form
+(10 levels total, mirroring the existing per-ligand corpus's 2x2 structure
 at each radius):
   - by_environment[r]              - radius-r joint environment, any metal
   - by_environment_and_metal[r]    - radius-r joint environment, this metal
@@ -18,7 +18,13 @@ fragments, not one molecule, so there's no single well-defined fingerprint
 to compute similarity against without inventing a whole new (and untested)
 notion of what "two complexes' environments are similar" should mean. That
 question is left open rather than answered with an ad hoc guess.
-"""
+
+Once a match is found, how *common* it is still matters - count_distribution/
+count_distribution_and_metal pool every occurrence count at a given radius
+into one sorted reference array per radius, the same role
+corpus/ligand_corpus.py's count_distribution plays, so
+scoring/matching.py's environment_percentile can rank a query's matched
+count the same way count_percentile ranks a ligand's."""
 
 from __future__ import annotations
 
@@ -50,6 +56,11 @@ class EnvironmentCorpus:
     )
     n_complexes_seen: int = 0
     n_complexes_used: int = 0  # reconstructed cleanly and had every candidate parse successfully
+    # radius -> every occurrence count in by_environment[r]/by_environment_and_metal[r], sorted -
+    # the reference population scoring/matching.py's environment_percentile ranks a query match's
+    # count against, same role as LigandCorpus.count_distribution.
+    count_distribution: dict[int, list[int]] = field(default_factory=lambda: {r: [] for r in RADII})
+    count_distribution_and_metal: dict[int, list[int]] = field(default_factory=lambda: {r: [] for r in RADII})
 
     def save(self, path: str | Path) -> None:
         with open(path, "wb") as f:
@@ -138,6 +149,10 @@ def build_environment_corpus(
 
         if progress_callback is not None and n_done % progress_every == 0:
             progress_callback("build", n_done, len(complexes), corpus)
+
+    for r in RADII:
+        corpus.count_distribution[r] = sorted(corpus.by_environment[r].values())
+        corpus.count_distribution_and_metal[r] = sorted(corpus.by_environment_and_metal[r].values())
 
     return corpus
 

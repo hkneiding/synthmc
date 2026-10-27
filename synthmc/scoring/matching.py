@@ -100,6 +100,19 @@ def find_environment_count(key, bucket: dict) -> int | None:
     return bucket.get(key)
 
 
+def environment_percentile(key, bucket: dict, count_distribution: list[int]) -> float:
+    """How common this exact joint environment is, relative to every joint
+    environment on record at this radius/metal-scope - count_percentile
+    applied to the matched key's count (0 if `key` isn't in `bucket` at
+    all). No None case here, unlike find_closest_precedent: `bucket` is one
+    flat dict (not a per-metal nest the way LigandCorpus's buckets are), so
+    there's no "bucket itself is missing" state to distinguish from "this
+    key just never occurred" - both already behave correctly as count 0,
+    which count_percentile naturally maps to its lowest value since every
+    stored count is >= 1."""
+    return count_percentile(bucket.get(key, 0), count_distribution)
+
+
 def find_steric_plausibility(normalized_bulk: float, cn: int, corpus: StericCorpus) -> float | None:
     """One-sided empirical survival function against corpus/steric_corpus.py's
     per-coordination-number bulk distribution: the fraction of real
@@ -114,7 +127,13 @@ def find_steric_plausibility(normalized_bulk: float, cn: int, corpus: StericCorp
     should be penalized.
 
     None if no corpus complex shares this coordination number at all - same
-    "no data" meaning as find_closest_precedent's None, not "implausible"."""
+    "no data" meaning as find_closest_precedent's None, not "implausible".
+
+    A (metal, CN)-bucketed variant of this lookup (with backoff to the
+    pooled-by-CN corpus below a minimum sample size) was built and held-out-
+    validated, then deliberately rejected in favor of this simpler, single
+    reference population - see corpus/steric_corpus.py's module docstring
+    for the full reasoning and what it fixed."""
     values = corpus.by_cn.get(cn)
     if not values:
         return None
@@ -127,5 +146,6 @@ __all__ = [
     "find_closest_precedent",
     "count_percentile",
     "find_environment_count",
+    "environment_percentile",
     "find_steric_plausibility",
 ]

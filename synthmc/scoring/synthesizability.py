@@ -7,10 +7,14 @@ project: by simple averaging. Ligand precedent already averages its own 4
 levels per ligand instance (LigandPrecedent.precedent_score - see
 scoring/evaluate.py); this module averages those per-ligand scores across
 every ligand in the complex to get one whole-complex ligand term, and
-averages the coordination-environment term's hard match/no-match outcomes
-(5 radii x {any-metal, metal-specific} = 10 binary checks) into one
-whole-complex environment term, the same way LigandCorpus's 4 levels get
-averaged. Steric plausibility is already a single per-complex number (see
+averages the coordination-environment term's 10 environment_percentile
+values (5 radii x {any-metal, metal-specific} - see
+StructureResult.full_environment_percentile/full_environment_and_metal_percentile)
+into one whole-complex environment term, the same way LigandCorpus's 4
+levels get averaged - not a hard match/no-match hit rate, a non-match
+already scores 0.0 within environment_percentile itself (see
+matching.py), so the only thing left to do here is average the 10 values.
+Steric plausibility is already a single per-complex number (see
 corpus/steric_corpus.py), so it's used as-is.
 
 `None` is used strictly for "no data was available to compute this", never
@@ -42,7 +46,7 @@ def _fmt(x: float | None) -> str:
 class SynthesizabilityResult:
     structure: StructureResult  # full underlying detail - per-ligand precedent, raw environment/steric data
     ligand_score: float | None  # mean of LigandPrecedent.precedent_score across every ligand in the complex
-    environment_score: float | None  # mean of hard 1/0 match outcomes across 5 radii x 2 metal-scope checks
+    environment_score: float | None  # mean of environment_percentile across 5 radii x 2 metal-scope checks
     steric_score: float | None  # = structure.steric.plausibility, carried through unchanged
     overall_score: float | None  # mean of whichever of the 3 terms above are not None; None if all 3 are
 
@@ -65,8 +69,8 @@ class SynthesizabilityResult:
 
         print(f"[2] Coordination environment precedent: {_fmt(self.environment_score)}")
         for r in sorted(s.full_environment):
-            any_metal = "match" if s.full_environment[r] is not None else "no match"
-            metal = "match" if s.full_environment_and_metal[r] is not None else "no match"
+            any_metal = _fmt(s.full_environment_percentile.get(r))
+            metal = _fmt(s.full_environment_and_metal_percentile.get(r))
             print(f"      radius {r}: any-metal={any_metal:8s} metal-specific={metal}")
         print()
 
@@ -81,13 +85,16 @@ def score_synthesizability(structure: StructureResult) -> SynthesizabilityResult
     ligand_score = statistics.mean(ligand_scores) if ligand_scores else None
 
     # A detection failure (xyz-derived results only - see xyz/adapter.py) fills
-    # full_environment/full_environment_and_metal with None for every radius rather than
-    # leaving the dict empty, which would otherwise look like "checked, no precedent" rather
-    # than "couldn't check" - excluded here the same way xyz/adapter.py documents it.
+    # full_environment_percentile/full_environment_and_metal_percentile with None for every
+    # radius rather than leaving the dict empty, which would otherwise look like "checked, no
+    # precedent" rather than "couldn't check" - excluded here the same way xyz/adapter.py
+    # documents it.
     any_ligand_failed = any(lig.error is not None for lig in structure.ligands)
-    if structure.full_environment and not any_ligand_failed:
-        env_values = list(structure.full_environment.values()) + list(structure.full_environment_and_metal.values())
-        environment_score = sum(1.0 if v is not None else 0.0 for v in env_values) / len(env_values)
+    if structure.full_environment_percentile and not any_ligand_failed:
+        env_values = list(structure.full_environment_percentile.values()) + list(
+            structure.full_environment_and_metal_percentile.values()
+        )
+        environment_score = statistics.mean(env_values)
     else:
         environment_score = None
 
