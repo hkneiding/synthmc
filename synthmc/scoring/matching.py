@@ -1,23 +1,3 @@
-"""Ligand precedent lookup: the single most similar corpus ligand sharing
-the query's donor_signature (same coordination mode) - always the true
-nearest neighbor by Tanimoto similarity, never overridden by a less similar
-but more common alternative (see find_closest_precedent's docstring for why
-that matters for interpretability).
-
-Reported as a single combined score = similarity * count_percentile, where
-count_percentile is an empirical CDF against how often *other* corpus
-ligands at this same level occur (see count_percentile below) - not a hand-
-picked saturation constant. No similarity threshold: a weak match to
-something common still gets a low score because similarity is low, not
-because it was gated out - the product decays continuously instead of
-falling off a cliff at some arbitrary cutoff.
-
-`None` means "no data for this key at all" (e.g. BOS-TMC has zero lanthanum
-entries, so no metal-specific bucket can ever exist for La) - a real data
-gap, distinct from a real but low score, which is what a poor match now
-looks like instead of a second flavor of None.
-"""
-
 from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
@@ -30,16 +10,7 @@ from synthmc.corpus.steric_corpus import StericCorpus
 
 
 def count_percentile(count: int, sorted_counts: list[int]) -> float:
-    """Empirical CDF: the fraction of `sorted_counts` (a level's pooled,
-    sorted occurrence counts - see corpus/ligand_corpus.py's
-    count_distribution) that are <= `count`. 1.0 means this count is at
-    least as large as everything on record at this level (about as
-    precedented as anything gets); near 0 means almost everything else at
-    this level is more common than this.
-
-    The opposite tail from find_steric_plausibility's survival function:
-    there, more bulk was worse; here, more occurrences is better, so this
-    is a lower-tail CDF, not an upper-tail survival function."""
+    """Empirical CDF: fraction of `sorted_counts` that are <= `count`."""
     if not sorted_counts:
         return 0.0
     n_le = bisect_right(sorted_counts, count)
@@ -57,24 +28,8 @@ class PrecedentMatch:
 def find_closest_precedent(
     smiles: str, fingerprint, bucket: SignatureBucket | None, count_distribution: list[int] | None
 ) -> PrecedentMatch | None:
-    """The single closest-matching ligand in `bucket` (already restricted
-    to the query's donor_signature, and optionally its metal - see
-    corpus/ligand_corpus.py) - unconditionally the true nearest neighbor,
-    never a different, less similar corpus entry chosen because it scores
-    higher once its count is factored in. That matters for interpretability:
-    if an exact match exists in the bucket, nothing can be more similar than
-    identical, so it's always selected and its score can only ever be
-    limited by its *own* count, never overridden by an unrelated but more
-    common structure elsewhere in the bucket - the reported "closest
-    precedent" stays a real, explainable analog, not an artifact of jointly
-    optimizing similarity and frequency together.
-
-    None only if `bucket` itself has no data (missing key or empty) - never
-    because the best match was "too dissimilar", since there's no threshold
-    anymore; a weak match just produces a low `score` instead.
-
-    Ties on similarity are broken by higher occurrence count (most
-    similar, and among equally similar, most precedented)."""
+    """The single closest-matching ligand in `bucket` by Tanimoto
+    similarity, or None if `bucket` has no data."""
     if bucket is None or not bucket.fingerprints:
         return None
 
@@ -91,49 +46,19 @@ def find_closest_precedent(
 
 
 def find_environment_count(key, bucket: dict) -> int | None:
-    """Exact-match-only lookup for corpus/environment_corpus.py's full
-    coordination-environment precedent - just a dict lookup, but named and
-    documented like the other lookups here rather than inlined, since the
-    "exact match only, no fallback" choice is deliberate (see
-    environment_corpus.py's module docstring for why) and worth being
-    explicit about at the call site."""
+    """Exact-match-only lookup for the coordination-environment corpus."""
     return bucket.get(key)
 
 
 def environment_percentile(key, bucket: dict, count_distribution: list[int]) -> float:
     """How common this exact joint environment is, relative to every joint
-    environment on record at this radius/metal-scope - count_percentile
-    applied to the matched key's count (0 if `key` isn't in `bucket` at
-    all). No None case here, unlike find_closest_precedent: `bucket` is one
-    flat dict (not a per-metal nest the way LigandCorpus's buckets are), so
-    there's no "bucket itself is missing" state to distinguish from "this
-    key just never occurred" - both already behave correctly as count 0,
-    which count_percentile naturally maps to its lowest value since every
-    stored count is >= 1."""
+    environment on record (0.0 if `key` has no match)."""
     return count_percentile(bucket.get(key, 0), count_distribution)
 
 
 def find_steric_plausibility(normalized_bulk: float, cn: int, corpus: StericCorpus) -> float | None:
-    """One-sided empirical survival function against corpus/steric_corpus.py's
-    per-coordination-number bulk distribution: the fraction of real
-    complexes at this same coordination number whose own normalized total
-    bulk was >= `normalized_bulk`. 1.0 means this complex is no bulkier
-    than anything on record at this CN; it only decays toward 0 as bulk
-    exceeds what's actually been accommodated.
-
-    Deliberately one-sided rather than a two-sided z-score: being *less*
-    bulky than typical isn't implausible (six small ligands like water or
-    fluoride around a metal is completely normal), so only the upper tail
-    should be penalized.
-
-    None if no corpus complex shares this coordination number at all - same
-    "no data" meaning as find_closest_precedent's None, not "implausible".
-
-    A (metal, CN)-bucketed variant of this lookup (with backoff to the
-    pooled-by-CN corpus below a minimum sample size) was built and held-out-
-    validated, then deliberately rejected in favor of this simpler, single
-    reference population - see corpus/steric_corpus.py's module docstring
-    for the full reasoning and what it fixed."""
+    """Fraction of same-CN complexes whose bulk was >= `normalized_bulk`;
+    None if no complex shares this CN."""
     values = corpus.by_cn.get(cn)
     if not values:
         return None

@@ -1,34 +1,3 @@
-"""A donor site's local structural environment, out to a given bond-graph
-radius - the building block for corpus/environment_corpus.py's full
-coordination-environment precedent (radius 0 = the site's own atoms and
-their mutual bonds only; radius 1 = plus everything one bond further out;
-and so on for radii 2 and 3).
-
-Represented as canonical SMILES (not abstract SMARTS query syntax) for
-consistency with the rest of this project - canonical SMILES already
-encodes formal charge and explicit H count directly. Radius 0 does *not*
-end up distinguishing hybridization/aromaticity (e.g. pyridine-type N vs.
-amine-type N) - this is standard, expected behavior for any radius-based
-circular environment (the same is true of ECFP0 vs. ECFP2 in ordinary
-Morgan fingerprinting), not a gap specific to this implementation.
-
-A bond that gets cut at the radius boundary is dropped entirely, with no
-dummy-atom marker and no degree preservation - whatever's left of a
-truncated atom gets RDKit's normal implicit-H filling, same as any other
-atom. An earlier version marked cuts with a dummy atom specifically to
-preserve degree (see project conversation/memory for the full argument),
-on the reasoning that two chemically different environments - e.g. a
-ring-embedded donor whose neighbor continues into the rest of the ring,
-vs. an open-chain donor whose neighbor terminates there - would otherwise
-canonicalize identically at whatever the largest computed radius happens
-to be. That's still true; this is a deliberate choice to accept that
-collision risk in exchange for a higher exact-match rate at each radius
-(more structures collapse into the same bucket - more hits, but some hits
-now mean less than a "real" match would). Measure the actual effect on
-match rates and decide from there, rather than reason about it in the
-abstract - see project conversation for the comparison.
-"""
-
 from __future__ import annotations
 
 from rdkit import Chem, RDLogger
@@ -39,13 +8,8 @@ RDLogger.DisableLog("rdApp.*")
 
 
 def _atoms_within_radius(mol: Chem.Mol, group: list[int], radius: int) -> set[int]:
-    """Multi-source BFS: every atom within `radius` bonds of *any* atom in
-    `group`, group members themselves included at distance 0. Using a
-    multi-source BFS (not per-atom radius queries unioned afterward)
-    matters specifically at radius=0: a multi-atom (hapto) group's own
-    internal bonds must always be included regardless of radius - they're
-    zero bonds away from the group as a whole, even though a single-atom
-    radius-0 query around any one member alone would see nothing."""
+    """Every atom within `radius` bonds of any atom in `group` (group
+    members included at distance 0)."""
     distance = {i: 0 for i in group}
     frontier = list(group)
     while frontier:
@@ -64,34 +28,14 @@ def _atoms_within_radius(mol: Chem.Mol, group: list[int], radius: int) -> set[in
 
 
 def site_bulk(mol: Chem.Mol, group: list[int], radius: int) -> int:
-    """Heavy-atom count (explicit H excluded) within `radius` bonds of
-    `group` - a purely topological steric-bulk proxy, computed straight off
-    the same atom set site_environment uses, with no conformer generation
-    or 3D geometry involved. See corpus/steric_corpus.py and
-    scoring/matching.py's find_steric_plausibility for how this is
-    aggregated and normalized into the steric-plausibility score term.
-
-    Only correct to sum across a ligand's own multiple donor sites when
-    their radius-`radius` neighborhoods can't overlap - for a multidentate
-    ligand whose sites are close enough together that they do, use
-    ligand_bulk instead, which de-duplicates shared atoms rather than
-    counting them once per site that reaches them."""
-    env_atoms = _atoms_within_radius(mol, group, radius)
-    return sum(1 for i in env_atoms if mol.GetAtomWithIdx(i).GetAtomicNum() > 1)
+    """Heavy-atom count within `radius` bonds of one donor `group`. Use
+    ligand_bulk instead for a ligand with multiple donor sites."""
+    return ligand_bulk(mol, [group], radius)
 
 
 def ligand_bulk(mol: Chem.Mol, groups: list[list[int]], radius: int) -> int:
-    """Heavy-atom count (explicit H excluded) within `radius` bonds of
-    *any* of a ligand's donor sites, counting each atom once even if it
-    falls within range of more than one site - the de-duplicated version of
-    summing site_bulk independently per site, which double-counts any atom
-    shared between two nearby sites' neighborhoods (routine for a
-    multidentate ligand whose donor atoms are only a few bonds apart, e.g.
-    acac, bipy, en-type chelates). Different ligands never need this
-    de-duplication against each other: each is parsed as its own
-    independent Mol with a disjoint atom index space, and the radius search
-    is bond-based, so there's no graph path from one ligand's atoms into
-    another's regardless of real 3D proximity."""
+    """Heavy-atom count within `radius` bonds of any of a ligand's donor
+    sites, de-duplicating atoms shared between sites."""
     env_atoms: set[int] = set()
     for group in groups:
         env_atoms |= _atoms_within_radius(mol, group, radius)
@@ -100,7 +44,7 @@ def ligand_bulk(mol: Chem.Mol, groups: list[list[int]], radius: int) -> int:
 
 def site_environment(mol: Chem.Mol, group: list[int], radius: int) -> str:
     """Canonical SMILES of `group`'s local environment out to `radius`
-    bonds. Cut bonds are simply dropped - see module docstring."""
+    bonds."""
     env_atoms = _atoms_within_radius(mol, group, radius)
 
     rw = Chem.RWMol()

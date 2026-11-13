@@ -1,8 +1,3 @@
-"""Small, dependency-free helpers used by both corpus/ (building the
-precedent corpus from BOS-Lig/BOS-TMC) and scoring/ (evaluating a
-candidate against it) - and, for elements.py/graph_utils.py, by xyz/ too.
-Nothing here knows about BOS-Lig, spec_mol2, or precedent lookups."""
-
 from synthmc.common.donor_signature import donor_signature, site_signature
 from synthmc.common.elements import TRANSITION_METALS, covalent_radius, is_transition_metal
 from synthmc.common.environment import ligand_bulk, site_bulk, site_environment

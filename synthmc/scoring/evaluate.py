@@ -1,21 +1,3 @@
-"""Core entry point: given a metal and its ligands - already known, not
-detected - precedent lookup against a LigandCorpus (see its module
-docstring for the 4 per-ligand levels) and, optionally, an
-EnvironmentCorpus (see its module docstring for the whole-complex
-full-coordination-environment precedent).
-
-This is the primary interface: the intended use case is evaluating
-in-silico-built TMCs, where the ligands and their binding atoms are already
-known by construction - you chose them to build the candidate.
-
-Each of the 3 precedent terms (ligand, coordination environment, steric) is
-its own 0-1-ish signal - see matching.py for how ligand precedent's 4 levels
-each become a score, and LigandPrecedent.precedent_score for how those 4
-combine per ligand. How multiple ligands within one complex fold into a
-single whole-complex ligand-precedent term, and how the 3 top-level terms
-themselves combine into one final score, are still open (see project
-conversation)."""
-
 from __future__ import annotations
 
 from collections import Counter
@@ -51,16 +33,8 @@ _KEEP_EXPLICIT_HS_UNSANITIZED.sanitize = False
 
 
 def _parse_ligand_smiles(smiles_in: str) -> Chem.Mol:
-    """Parse `smiles_in` with normal full sanitization; on failure, retry
-    with the same cascading fallback common/environment.py already uses
-    (full -> skip kekulization -> also skip valence/property checking - see
-    common/sanitize.py for both tiers). Needed for the same reason there:
-    structures corpus/mol2.py already tolerated on the way into the corpus
-    (Cp-type fragments, unusual NHC/phosphazene-type valence cases - all
-    from BOS-Lig's zero-formal-charge mol2 convention) have to be tolerated
-    again here, since a plain Chem.MolFromSmiles with default sanitization
-    has none of that leniency. Only a genuine syntax error, or a sanitize
-    failure the last (most permissive) tier still can't get past, raises."""
+    """Parse `smiles_in`, falling back to progressively more permissive
+    sanitization on failure."""
     mol = Chem.MolFromSmiles(smiles_in, _KEEP_EXPLICIT_HS)
     if mol is not None:
         return mol
@@ -125,6 +99,8 @@ class StructureResult:
 
 
 def _formula(symbols: list[str]) -> str:
+    """Molecular formula string from a flat atom-symbol list, e.g.
+    ['C', 'H', 'H', 'H', 'N'] -> 'CH3N'."""
     counts = Counter(symbols)
     return "".join(f"{el}{n}" for el, n in sorted(counts.items()))
 
@@ -137,25 +113,8 @@ def evaluate_complex(
     environment_corpus: EnvironmentCorpus | None = None,
     steric_corpus: StericCorpus | None = None,
 ) -> StructureResult:
-    """Evaluate a TMC whose chemistry you already know: `metal` (element
-    symbol) and `ligands`, a list of (explicit-H SMILES, binding_atoms)
-    pairs, where `binding_atoms` is a flat list of that SMILES string's own
-    atom positions that touch the metal. Hapticity grouping (which of those
-    positions form one multi-atom site vs. separate ones) is derived
-    automatically from the SMILES's own bond graph - the caller doesn't
-    need to work out denticity themselves, just which atoms bind.
-
-    Pass `environment_corpus` to also get the whole-complex full
-    coordination-environment precedent (see environment_corpus.py), and/or
-    `steric_corpus` for the steric-plausibility term (see
-    corpus/steric_corpus.py) - both left optional since they're separate
-    corpora from `corpus` and a caller may only want the per-ligand
-    levels.
-
-    Raises if any ligand's SMILES can't be parsed - this function is for
-    chemistry you already know, so a parse failure means the input is
-    wrong, not that this ligand happened to be unusual; it shouldn't be
-    silently swallowed and mistaken for a real (if weak) precedent score."""
+    """Evaluate a TMC's `metal` and `ligands` (SMILES, binding_atoms)
+    pairs against `corpus`. Raises on an unparseable SMILES."""
     results = []
     envs: dict[int, list[str]] = {r: [] for r in RADII}
     total_bulk = 0

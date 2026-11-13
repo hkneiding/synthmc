@@ -1,31 +1,3 @@
-"""Reconstruct one BOS-TMC complex's complete ligand multiset (every
-ligand present, and how many times) by matching BOS-TMC's own
-`coordination formula` field against BOS-Lig's candidate structures for
-that refcode.
-
-This exists because BOS-Lig's spec_refcode lists are deduplicated *sets*
-of refcodes a ligand appears in, not per-occurrence multisets - a ligand
-that occurs twice in one complex (any homoleptic or bis/tris-chelate
-structure - not a rare case) only gets credited once if you try to
-reconstruct occurrence counts by inverting that list directly. Confirmed
-this empirically: only ~32% of complexes' donor-atom counts matched
-between BOS-TMC's own histogram and a naive BOS-Lig reconstruction.
-
-`coordination formula` (e.g. "Ir (BC29H29N)2 C5H7O2") sidesteps that
-entirely - it already gives exact per-ligand-formula multiplicities
-directly from BOS-TMC, verified self-consistent with BOS-TMC's own
-`natoms` field on a 3000-complex random sample (zero mismatches). The only
-remaining job is matching each formula term to *which* BOS-Lig structure
-it refers to, by comparing molecular formulas. Measured on an 8000-complex
-sample: 97.6% match every term to exactly one BOS-Lig candidate
-(unambiguous); 0.1% have a formula shared by more than one real BOS-Lig
-structure (a genuine structural-isomer ambiguity); 2.4% have a term with
-no BOS-Lig candidate at all (a coverage gap). Both of the latter are
-dropped rather than guessed at - same "narrow accepted gap over a forced
-guess" principle used elsewhere in this project (e.g. bostmc.py's
-multi-component exclusion).
-"""
-
 from __future__ import annotations
 
 import re
@@ -70,10 +42,8 @@ def reconstruct_ligand_multiset(
     metal: str,
     candidate_formulas: list[Counter],
 ) -> list[ComplexLigand] | None:
-    """Match each coordination-formula term to exactly one entry in
-    `candidate_formulas` (BOS-Lig structures known to occur somewhere in
-    this refcode, as parsed element-count Counters). Returns None if any
-    term matches zero or more than one candidate - see module docstring."""
+    """Match each formula term to one candidate; None on an ambiguous or
+    missing match."""
     terms = parse_coordination_formula(coordination_formula, metal)
 
     result = []

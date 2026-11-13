@@ -1,40 +1,26 @@
-"""Build the 4-level ligand precedent corpus from BOS-Lig + BOS-TMC and
-save it to disk. See ligand_corpus.py's module docstring for what the 4
-levels mean.
-
-Usage:
-    python scripts/build_ligand_corpus.py
-"""
-
 from __future__ import annotations
 
-import sys
 import time
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _common import ROOT, make_progress_printer
 
 from synthmc.corpus import build_ligand_corpus  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-
 
 def main():
+    """Build the 4-level ligand corpus and save it to ligand_corpus.pkl."""
     boslig_csv = ROOT / "BOSLig" / "Dataset" / "ligand_charge_dataset.csv"
     bostmc_dir = ROOT / "BOSTMC"
     out_path = ROOT / "ligand_corpus.pkl"
 
     t0 = time.time()
-
-    def progress(stage, n_seen, n_total, corpus):
-        elapsed = time.time() - t0
-        rate = n_seen / elapsed if elapsed > 0 else 0
-        print(f"  [{stage}] {n_seen:>7d}/{n_total} [{elapsed:.0f}s, {rate:.0f}/s]", flush=True)
+    progress = make_progress_printer(t0)
 
     print(f"Building ligand corpus from {boslig_csv} + {bostmc_dir} ...")
     corpus = build_ligand_corpus(boslig_csv, bostmc_dir, progress_every=5000, progress_callback=progress)
 
     def stats(buckets):
+        """(n_sub_buckets, n_distinct_smiles, total_count) for one level."""
         if isinstance(buckets, dict):
             n_smiles = sum(len(b.counts) for b in buckets.values())
             total = sum(sum(b.counts.values()) for b in buckets.values())

@@ -1,6 +1,3 @@
-"""Build all three precedent corpora with a held-out refcode set excluded,
-for validation.corpora.evaluate to query against."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,9 +23,7 @@ def build_holdout_corpora(
     reconstructed_holdout: dict[str, ReconstructedComplex],
     progress_callback=None,
 ) -> HoldoutCorpora:
-    """`reconstructed_holdout` (from validation.reconstruct.reconstruct_complexes,
-    same `holdout_refcodes`) supplies the exact per-ligand-structure counts
-    build_ligand_corpus needs to exclude precisely - see its docstring."""
+    """Build all three corpora with `holdout_refcodes` excluded."""
     exclude_spec_counts, exclude_gen_counts = ligand_corpus_exclusions(reconstructed_holdout, boslig_csv)
 
     ligand = build_ligand_corpus(

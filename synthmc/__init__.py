@@ -1,16 +1,3 @@
-"""synthmc: precedent-based ligand evaluation for transition metal complexes.
-
-Package layout:
-  common/  - small shared helpers (element data, graph utilities, donor
-             signatures, donor-site environments) used by both corpus/ and
-             scoring/.
-  corpus/  - builds/represents the precedent corpora from BOS-Lig + BOS-TMC:
-             LigandCorpus (4 per-ligand levels) and EnvironmentCorpus (the
-             whole-complex full coordination-environment precedent).
-  scoring/ - the API: evaluate_complex(metal, ligands, corpus) against a
-             corpus, given chemistry you already know.
-"""
-
 from synthmc.corpus import (
     EnvironmentCorpus,
     LigandCorpus,

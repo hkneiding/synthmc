@@ -1,18 +1,3 @@
-"""Reconstruct held-out refcodes into query-ready complexes, straight from
-BOS-Lig's own curated mol2 data - the same xyz-free path
-corpus/donor_sites.py offers, not corpus/environment_corpus.py's internal
-build loop (which only tallies aggregate stats and never needs to keep a
-per-complex (SMILES, binding_atoms) list around).
-
-Also derives the exact spec_gh/gen_gh occurrence counts to subtract from
-corpus/ligand_corpus.py's pre-aggregated gen_count/spec_count totals for a
-proper held-out ligand corpus - see build_ligand_corpus's docstring for why
-that can't be done from the refcode set alone the way the other two corpora
-manage it. Only refcodes that resolve cleanly need an entry here: one that
-fails to resolve (ambiguous/missing candidate) is never queried either, so
-leaving its contribution in the ligand corpus causes no leakage.
-"""
-
 from __future__ import annotations
 
 import ast
@@ -42,14 +27,8 @@ class ReconstructedComplex:
 def reconstruct_complexes(
     boslig_csv: str | Path, bostmc_dir: str | Path, refcodes: set[str]
 ) -> dict[str, ReconstructedComplex]:
-    """For each of `refcodes` (a subset of BOS-TMC's own complexes),
-    reconstruct its exact ligand multiset the same way
-    corpus/environment_corpus.py and corpus/steric_corpus.py do internally,
-    except this keeps what they discard: the resolved (spec_gh,
-    multiplicity) pairs and a clean (SMILES, binding_atoms) ligand list.
-    Refcodes that don't resolve cleanly (~2.4% project-wide - ambiguous or
-    missing BOS-Lig candidate, see complex_ligands.py) are simply absent
-    from the returned dict."""
+    """Reconstruct each of `refcodes` into a query-ready complex. Refcodes
+    that don't resolve cleanly are absent from the returned dict."""
     complexes = load_complexes(bostmc_dir)
     lig = pd.read_csv(boslig_csv)
 
@@ -104,10 +83,7 @@ def reconstruct_complexes(
 def ligand_corpus_exclusions(
     reconstructed: dict[str, ReconstructedComplex], boslig_csv: str | Path
 ) -> tuple[dict[str, int], dict[str, int]]:
-    """(exclude_spec_counts, exclude_gen_counts) for
-    corpus/ligand_corpus.py's build_ligand_corpus - spec_gh/gen_gh ->
-    exact total occurrence count to subtract, summed across every held-out
-    complex's resolved instances."""
+    """(exclude_spec_counts, exclude_gen_counts) for build_ligand_corpus."""
     exclude_spec: Counter = Counter()
     for rc in reconstructed.values():
         for spec_gh, multiplicity in rc.instances:

@@ -1,6 +1,3 @@
-"""Query every held-out complex against the held-out corpora and tally
-results for all three precedent terms - the actual validation step."""
-
 from __future__ import annotations
 
 import statistics
@@ -16,17 +13,13 @@ _LIGAND_LEVELS = ["by_ligand", "by_ligand_and_metal", "by_ligand_and_mode", "by_
 
 
 def _fmt(x: float | None) -> str:
+    """3-decimal string, or "n/a" for None - for print_report's printout."""
     return f"{x:.3f}" if x is not None else "n/a"
 
 
 @dataclass
 class PerComplexRecord:
-    """One row per held-out complex - refcode-identified and aligned across
-    all four scores (unlike the separate synth_*_values lists above, which
-    are each independently filtered to non-None and so aren't safely
-    index-aligned with each other in general). Used for plots that need to
-    relate scores to each other or to metadata (metal, CN), or that need to
-    name a specific example."""
+    """One row per held-out complex, aligned across all four scores."""
 
     refcode: str
     metal: str
@@ -95,6 +88,8 @@ class HoldoutValidationResult:
 def run_holdout_validation(
     reconstructed: dict[str, ReconstructedComplex], corpora: HoldoutCorpora, n_holdout: int
 ) -> HoldoutValidationResult:
+    """Query every complex in `reconstructed` against `corpora` and tally
+    every HoldoutValidationResult statistic."""
     ligand_scores: dict[str, list[float]] = {level: [] for level in _LIGAND_LEVELS}
     ligand_no_data: dict[str, int] = {level: 0 for level in _LIGAND_LEVELS}
     combined_scores: list[float] = []
@@ -221,6 +216,7 @@ def run_holdout_validation(
 
 
 def print_report(result: HoldoutValidationResult) -> None:
+    """Print a human-readable breakdown of a HoldoutValidationResult."""
     print(
         f"Held-out complexes: {result.n_holdout}, reconstructed cleanly: {result.n_reconstructed}, "
         f"evaluate_complex failed on: {result.n_eval_failed}"

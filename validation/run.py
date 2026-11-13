@@ -1,13 +1,3 @@
-"""End-to-end held-out validation: split, build held-out corpora, query,
-report. Supersedes the earlier ad hoc scripts/holdout_environment_test.py -
-this covers all three precedent terms (ligand, coordination environment,
-steric) against one shared held-out split, rather than just the environment
-corpus alone.
-
-Usage:
-    python validation/run.py
-"""
-
 from __future__ import annotations
 
 import pickle
@@ -28,6 +18,7 @@ SEED = 0
 
 
 def main():
+    """Run the full held-out validation pipeline end to end."""
     boslig_csv = ROOT / "BOSLig" / "Dataset" / "ligand_charge_dataset.csv"
     bostmc_dir = ROOT / "BOSTMC"
 
@@ -41,6 +32,7 @@ def main():
     print(f"  {len(reconstructed)}/{len(holdout_refcodes)} resolved cleanly")
 
     def progress(stage, n_seen, n_total, corpus):
+        """Print "[stage] n_seen/n_total [elapsed]"."""
         elapsed = time.time() - t0
         print(f"  [{stage}] {n_seen:>7d}/{n_total} [{elapsed:.0f}s]", flush=True)
 

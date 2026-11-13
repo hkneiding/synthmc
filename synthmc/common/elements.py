@@ -1,10 +1,3 @@
-"""Element reference data used for bond perception.
-
-Radii are pulled from ASE's data table (Cordero et al. 2008 covalent
-radii) rather than hand-transcribed, to avoid silent transcription errors
-in a table that directly controls bond perception correctness.
-"""
-
 from __future__ import annotations
 
 from ase.data import atomic_numbers, covalent_radii
@@ -29,6 +22,7 @@ def covalent_radius(symbol: str) -> float:
 
 
 def is_transition_metal(symbol: str) -> bool:
+    """Whether `symbol` is in TRANSITION_METALS."""
     return symbol in TRANSITION_METALS
 
 

@@ -1,9 +1,3 @@
-"""The core evaluation API: given a metal and its ligands (already known -
-see evaluate.py's module docstring for why), look up precedent against a
-LigandCorpus. evaluate_complex is the primary interface this whole project
-exposes - xyz/ is a separate, optional detection layer that feeds into it,
-not a dependency of it."""
-
 from synthmc.scoring.evaluate import LigandPrecedent, StericMatch, StructureResult, evaluate_complex
 from synthmc.scoring.matching import (
     PrecedentMatch,

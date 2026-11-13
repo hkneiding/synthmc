@@ -1,35 +1,20 @@
-"""Build the steric-plausibility precedent corpus from BOS-Lig + BOS-TMC
-and save it to disk. See corpus/steric_corpus.py's module docstring for
-what this captures.
-
-Usage:
-    python scripts/build_steric_corpus.py
-"""
-
 from __future__ import annotations
 
-import sys
 import time
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _common import ROOT, make_progress_printer
 
 from synthmc.corpus.steric_corpus import build_steric_corpus  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-
 
 def main():
+    """Build the per-CN steric corpus and save it to steric_corpus.pkl."""
     boslig_csv = ROOT / "BOSLig" / "Dataset" / "ligand_charge_dataset.csv"
     bostmc_dir = ROOT / "BOSTMC"
     out_path = ROOT / "steric_corpus.pkl"
 
     t0 = time.time()
-
-    def progress(stage, n_seen, n_total, corpus):
-        elapsed = time.time() - t0
-        rate = n_seen / elapsed if elapsed > 0 else 0
-        print(f"  [{stage}] {n_seen:>7d}/{n_total} [{elapsed:.0f}s, {rate:.0f}/s]", flush=True)
+    progress = make_progress_printer(t0)
 
     print(f"Building steric corpus from {boslig_csv} + {bostmc_dir} ...")
     corpus = build_steric_corpus(boslig_csv, bostmc_dir, progress_every=20000, progress_callback=progress)
