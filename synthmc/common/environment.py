@@ -27,12 +27,6 @@ def _atoms_within_radius(mol: Chem.Mol, group: list[int], radius: int) -> set[in
     return set(distance)
 
 
-def site_bulk(mol: Chem.Mol, group: list[int], radius: int) -> int:
-    """Heavy-atom count within `radius` bonds of one donor `group`. Use
-    ligand_bulk instead for a ligand with multiple donor sites."""
-    return ligand_bulk(mol, [group], radius)
-
-
 def ligand_bulk(mol: Chem.Mol, groups: list[list[int]], radius: int) -> int:
     """Heavy-atom count within `radius` bonds of any of a ligand's donor
     sites, de-duplicating atoms shared between sites."""
@@ -71,4 +65,4 @@ def site_environment(mol: Chem.Mol, group: list[int], radius: int) -> str:
     return Chem.MolToSmiles(frag)
 
 
-__all__ = ["site_environment", "site_bulk", "ligand_bulk"]
+__all__ = ["site_environment", "ligand_bulk"]

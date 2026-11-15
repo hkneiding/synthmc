@@ -88,7 +88,7 @@ def _refcode_metal_counts(
 def build_ligand_corpus(
     boslig_csv: str | Path,
     bostmc_dir: str | Path,
-    progress_every: int = 10000,
+    progress_every: int = 20000,
     progress_callback=None,
     exclude_refcodes: set[str] | None = None,
     exclude_gen_counts: dict[str, int] | None = None,
