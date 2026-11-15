@@ -7,6 +7,7 @@ from synthmc.corpus import (
     build_steric_corpus,
 )
 from synthmc.scoring import (
+    EnvironmentMatch,
     LigandPrecedent,
     PrecedentMatch,
     StericResult,
@@ -25,6 +26,7 @@ __all__ = [
     "build_steric_corpus",
     "LigandPrecedent",
     "StructureResult",
+    "EnvironmentMatch",
     "StericResult",
     "SynthesizabilityResult",
     "score_synthesizability",  # combines the 3 precedent terms into one overall score

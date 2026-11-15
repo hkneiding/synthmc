@@ -35,9 +35,10 @@ class SynthesizabilityResult:
         print()
 
         print(f"[2] Coordination environment precedent: {_fmt(self.environment_score)}")
-        for r in sorted(s.full_environment):
-            any_metal = _fmt(s.full_environment_percentile.get(r))
-            metal = _fmt(s.full_environment_and_metal_percentile.get(r))
+        for r in sorted(s.environment):
+            env = s.environment[r]
+            any_metal = _fmt(env.percentile)
+            metal = _fmt(env.percentile_and_metal)
             print(f"      radius {r}: any-metal={any_metal:8s} metal-specific={metal}")
         print()
 
@@ -53,10 +54,10 @@ def score_synthesizability(structure: StructureResult) -> SynthesizabilityResult
     ligand_scores = [lig.precedent_score for lig in structure.ligands if lig.precedent_score is not None]
     ligand_score = statistics.mean(ligand_scores) if ligand_scores else None
 
-    if structure.full_environment_percentile:
-        env_values = list(structure.full_environment_percentile.values()) + list(
-            structure.full_environment_and_metal_percentile.values()
-        )
+    if structure.environment:
+        env_values = [m.percentile for m in structure.environment.values()] + [
+            m.percentile_and_metal for m in structure.environment.values()
+        ]
         environment_score = statistics.mean(env_values)
     else:
         environment_score = None

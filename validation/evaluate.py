@@ -77,8 +77,8 @@ class HoldoutValidationResult:
     synth_environment_score_values: list[float] = field(default_factory=list)
     synth_overall_score_values: list[float] = field(default_factory=list)
     # per-radius percentile values behind synth_environment_score_values's per-complex
-    # average (StructureResult.full_environment_percentile / full_environment_and_metal_percentile,
-    # Section 3b) - kept separately per radius for the per-level distribution plots
+    # average (StructureResult.environment[r].percentile / .percentile_and_metal) - kept
+    # separately per radius for the per-level distribution plots
     environment_percentile_values: dict[int, list[float]] = field(default_factory=dict)
     environment_and_metal_percentile_values: dict[int, list[float]] = field(default_factory=dict)
     # one aligned, refcode-identified row per held-out complex - see PerComplexRecord
@@ -131,16 +131,13 @@ def run_holdout_validation(
             combined_scores.append(lig.precedent_score)
 
         for r in RADII:
-            if result.full_environment.get(r) is not None:
+            env = result.environment[r]
+            if env.count is not None:
                 env_hits[r] += 1
-            if result.full_environment_and_metal.get(r) is not None:
+            if env.count_and_metal is not None:
                 env_metal_hits[r] += 1
-            p = result.full_environment_percentile.get(r)
-            if p is not None:
-                env_percentile_values[r].append(p)
-            p_metal = result.full_environment_and_metal_percentile.get(r)
-            if p_metal is not None:
-                env_metal_percentile_values[r].append(p_metal)
+            env_percentile_values[r].append(env.percentile)
+            env_metal_percentile_values[r].append(env.percentile_and_metal)
 
         if result.steric is not None:
             steric_values.append(result.steric.plausibility)

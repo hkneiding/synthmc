@@ -78,17 +78,19 @@ class StericResult:
 
 
 @dataclass
+class EnvironmentMatch:
+    count: int | None  # exact-match occurrence count at this radius, any metal; None if no match
+    count_and_metal: int | None  # exact-match occurrence count at this radius, this metal; None if no match
+    percentile: float  # how common that joint environment is at this radius, any metal
+    percentile_and_metal: float  # how common that joint environment is at this radius, this metal
+
+
+@dataclass
 class StructureResult:
     metal_symbol: str
     ligands: list[LigandPrecedent] = field(default_factory=list)
     identifier: str = ""  # optional caller-supplied label (e.g. a CSD refcode), not used internally
-    # radius -> precedent count for this whole complex's joint donor-site environment.
-    full_environment: dict[int, int | None] = field(default_factory=dict)
-    full_environment_and_metal: dict[int, int | None] = field(default_factory=dict)
-    # radius -> how common that joint environment is, relative to every joint environment on
-    # record at that radius/metal-scope (0.0 if no match at all).
-    full_environment_percentile: dict[int, float | None] = field(default_factory=dict)
-    full_environment_and_metal_percentile: dict[int, float | None] = field(default_factory=dict)
+    environment: dict[int, EnvironmentMatch] = field(default_factory=dict)  # radius -> EnvironmentMatch
     # None if the metal has no tabulated covalent radius, or no corpus complex shares this CN.
     steric: StericResult | None = None
 
@@ -169,21 +171,20 @@ def evaluate_complex(
             )
         )
 
-    full_environment: dict[int, int | None] = {}
-    full_environment_and_metal: dict[int, int | None] = {}
-    full_environment_percentile: dict[int, float | None] = {}
-    full_environment_and_metal_percentile: dict[int, float | None] = {}
+    environment: dict[int, EnvironmentMatch] = {}
     for r in RADII:
         key = tuple(sorted(envs[r]))
-        full_environment[r] = find_environment_count(key, environment_corpus.by_environment[r])
-        full_environment_and_metal[r] = find_environment_count(
-            (metal, key), environment_corpus.by_environment_and_metal[r]
-        )
-        full_environment_percentile[r] = environment_percentile(
-            key, environment_corpus.by_environment[r], environment_corpus.count_distribution[r]
-        )
-        full_environment_and_metal_percentile[r] = environment_percentile(
-            (metal, key), environment_corpus.by_environment_and_metal[r], environment_corpus.count_distribution_and_metal[r]
+        environment[r] = EnvironmentMatch(
+            count=find_environment_count(key, environment_corpus.by_environment[r]),
+            count_and_metal=find_environment_count((metal, key), environment_corpus.by_environment_and_metal[r]),
+            percentile=environment_percentile(
+                key, environment_corpus.by_environment[r], environment_corpus.count_distribution[r]
+            ),
+            percentile_and_metal=environment_percentile(
+                (metal, key),
+                environment_corpus.by_environment_and_metal[r],
+                environment_corpus.count_distribution_and_metal[r],
+            ),
         )
 
     steric: StericResult | None = None
@@ -201,12 +202,9 @@ def evaluate_complex(
         metal_symbol=metal,
         ligands=results,
         identifier=identifier,
-        full_environment=full_environment,
-        full_environment_and_metal=full_environment_and_metal,
-        full_environment_percentile=full_environment_percentile,
-        full_environment_and_metal_percentile=full_environment_and_metal_percentile,
+        environment=environment,
         steric=steric,
     )
 
 
-__all__ = ["LigandPrecedent", "StructureResult", "StericResult", "evaluate_complex"]
+__all__ = ["LigandPrecedent", "StructureResult", "EnvironmentMatch", "StericResult", "evaluate_complex"]
