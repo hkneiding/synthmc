@@ -193,7 +193,7 @@ def evaluate_complex(
         r_metal = None
     if r_metal is not None:
         normalized_bulk = total_bulk / r_metal
-        plausibility = find_steric_plausibility(normalized_bulk, cn, steric_corpus)
+        plausibility = find_steric_plausibility(normalized_bulk, steric_corpus.by_cn.get(cn))
         if plausibility is not None:
             steric = StericMatch(normalized_bulk=normalized_bulk, cn=cn, plausibility=plausibility)
 

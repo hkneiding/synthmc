@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from rdkit import DataStructs
 
 from synthmc.corpus.ligand_corpus import SignatureBucket
-from synthmc.corpus.steric_corpus import StericCorpus
 
 
 def count_percentile(count: int, sorted_counts: list[int]) -> float:
@@ -56,10 +55,9 @@ def environment_percentile(key, bucket: dict, count_distribution: list[int]) -> 
     return count_percentile(bucket.get(key, 0), count_distribution)
 
 
-def find_steric_plausibility(normalized_bulk: float, cn: int, corpus: StericCorpus) -> float | None:
-    """Fraction of same-CN complexes whose bulk was >= `normalized_bulk`;
-    None if no complex shares this CN."""
-    values = corpus.by_cn.get(cn)
+def find_steric_plausibility(normalized_bulk: float, values: list[float] | None) -> float | None:
+    """Fraction of `values` (same-CN complexes' normalized bulk) that are
+    >= `normalized_bulk`; None if `values` is empty."""
     if not values:
         return None
     n_at_or_above = len(values) - bisect_left(values, normalized_bulk)
