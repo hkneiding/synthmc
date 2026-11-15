@@ -1,6 +1,6 @@
 # synthmc
 
-Precedent-based synthesizability scoring for transition metal complexes (TMCs), built on the [BOS-TMC](https://doi.org/10.1021/acs.jcim.6c01792) and [BOS-Lig](https://doi.org/10.1021/acs.jcim.6c01063) datasets.
+[Precedent-based synthesizability scoring for transition metal complexes](https://doi.org/10.26434/chemrxiv.15012168/v1) (TMCs), built on the [BOS-TMC](https://doi.org/10.1021/acs.jcim.6c01792) and [BOS-Lig](https://doi.org/10.1021/acs.jcim.6c01063) datasets.
 
 ## Install
 
@@ -20,7 +20,7 @@ python scripts/build_environment_corpus.py
 python scripts/build_steric_corpus.py
 ```
 
-This expects `BOSTMC/` and `BOSLig/` data directories at the repo root (see `scripts/_common.py` for paths). Each script writes its `.pkl` file to the repo root; expect the environment corpus build to take a few minutes.
+This expects `BOSTMC/` and `BOSLig/` data directories at the repo root. Each script writes its `.pkl` file to the repo root; expect the environment corpus build to take a few minutes.
 
 ## Quickstart: scoring Zeise's salt
 
