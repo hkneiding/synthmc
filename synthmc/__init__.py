@@ -13,7 +13,6 @@ from synthmc.scoring import (
     StructureResult,
     SynthesizabilityResult,
     evaluate_complex,
-    find_closest_precedent,
     score_synthesizability,
 )
 
@@ -31,5 +30,4 @@ __all__ = [
     "score_synthesizability",  # combines the 3 precedent terms into one overall score
     "evaluate_complex",  # the interface - chemistry already known
     "PrecedentMatch",
-    "find_closest_precedent",
 ]
