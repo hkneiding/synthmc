@@ -2,6 +2,7 @@ from synthmc.scoring.evaluate import LigandPrecedent, StericMatch, StructureResu
 from synthmc.scoring.matching import (
     PrecedentMatch,
     count_percentile,
+    environment_percentile,
     find_closest_precedent,
     find_environment_count,
     find_steric_plausibility,
@@ -17,6 +18,7 @@ __all__ = [
     "find_closest_precedent",
     "count_percentile",
     "find_environment_count",
+    "environment_percentile",
     "find_steric_plausibility",
     "SynthesizabilityResult",
     "score_synthesizability",
