@@ -71,7 +71,7 @@ class LigandPrecedent:
 
 
 @dataclass
-class StericMatch:
+class StericResult:
     normalized_bulk: float  # total heavy-atom bulk across all donor sites, divided by the metal's covalent radius
     cn: int  # coordination number - total number of donor sites (hapto groups), counting repeated ligands
     plausibility: float  # find_steric_plausibility's one-sided survival-function value, in [0, 1]
@@ -90,7 +90,7 @@ class StructureResult:
     full_environment_percentile: dict[int, float | None] = field(default_factory=dict)
     full_environment_and_metal_percentile: dict[int, float | None] = field(default_factory=dict)
     # None if the metal has no tabulated covalent radius, or no corpus complex shares this CN.
-    steric: StericMatch | None = None
+    steric: StericResult | None = None
 
 
 def _formula(symbols: list[str]) -> str:
@@ -186,7 +186,7 @@ def evaluate_complex(
             (metal, key), environment_corpus.by_environment_and_metal[r], environment_corpus.count_distribution_and_metal[r]
         )
 
-    steric: StericMatch | None = None
+    steric: StericResult | None = None
     try:
         r_metal = covalent_radius(metal)
     except (KeyError, ValueError):
@@ -195,7 +195,7 @@ def evaluate_complex(
         normalized_bulk = total_bulk / r_metal
         plausibility = find_steric_plausibility(normalized_bulk, steric_corpus.by_cn.get(cn))
         if plausibility is not None:
-            steric = StericMatch(normalized_bulk=normalized_bulk, cn=cn, plausibility=plausibility)
+            steric = StericResult(normalized_bulk=normalized_bulk, cn=cn, plausibility=plausibility)
 
     return StructureResult(
         metal_symbol=metal,
@@ -209,4 +209,4 @@ def evaluate_complex(
     )
 
 
-__all__ = ["LigandPrecedent", "StructureResult", "StericMatch", "evaluate_complex"]
+__all__ = ["LigandPrecedent", "StructureResult", "StericResult", "evaluate_complex"]

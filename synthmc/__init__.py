@@ -9,7 +9,7 @@ from synthmc.corpus import (
 from synthmc.scoring import (
     LigandPrecedent,
     PrecedentMatch,
-    StericMatch,
+    StericResult,
     StructureResult,
     SynthesizabilityResult,
     evaluate_complex,
@@ -25,7 +25,7 @@ __all__ = [
     "build_steric_corpus",
     "LigandPrecedent",
     "StructureResult",
-    "StericMatch",
+    "StericResult",
     "SynthesizabilityResult",
     "score_synthesizability",  # combines the 3 precedent terms into one overall score
     "evaluate_complex",  # the interface - chemistry already known

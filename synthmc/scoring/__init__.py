@@ -1,4 +1,4 @@
-from synthmc.scoring.evaluate import LigandPrecedent, StericMatch, StructureResult, evaluate_complex
+from synthmc.scoring.evaluate import LigandPrecedent, StericResult, StructureResult, evaluate_complex
 from synthmc.scoring.matching import (
     PrecedentMatch,
     count_percentile,
@@ -12,7 +12,7 @@ from synthmc.scoring.synthesizability import SynthesizabilityResult, score_synth
 __all__ = [
     "LigandPrecedent",
     "StructureResult",
-    "StericMatch",
+    "StericResult",
     "evaluate_complex",
     "PrecedentMatch",
     "find_closest_precedent",
