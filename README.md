@@ -5,14 +5,14 @@ Precedent-based synthesizability scoring for transition metal complexes (TMCs), 
 ## Install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/hkneiding/synthmc/
 cd tmc_sa
 conda create -n synthmc python=3.11
 conda activate synthmc
 conda install -c conda-forge rdkit ase pandas
 ```
 
-The precedent corpora (`ligand_corpus.pkl`, `environment_corpus.pkl`, `steric_corpus.pkl`) are not provided; build them yourself from the [BOS-TMC](https://zenodo.org/records/20384001) and [BOS-Lig](https://zenodo.org/records/19014026) datasets:
+The precedent corpora (`ligand_corpus.pkl`, `environment_corpus.pkl`, `steric_corpus.pkl`) are not provided; build them yourself from the [BOS-TMC](https://zenodo.org/records/20384001) and [BOS-Lig](https://zenodo.org/records/19014026) dataset repositories:
 
 ```bash
 python scripts/build_ligand_corpus.py
@@ -38,7 +38,7 @@ with open("environment_corpus.pkl", "rb") as f:
 with open("steric_corpus.pkl", "rb") as f:
     steric_corpus = pickle.load(f)
 
-# Metal provided with chemical symbold.
+# Metal provided with chemical symbol.
 metal = "Pt"
 # Ligands are (SMILES, binding_atoms) pairs, where binding_atoms is the
 # list of that SMILES string's own atom indices binding to the metal.
