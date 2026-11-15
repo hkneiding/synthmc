@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import ast
-from collections import Counter
-
-import pandas as pd
 from rdkit import Chem, RDLogger
 
 from synthmc.common.graph_utils import group_by_mutual_bonding
@@ -81,32 +77,4 @@ def spec_mol2_to_smiles_and_donor_groups(spec_mol2_text: str) -> tuple[str, list
     return smiles, smiles_groups
 
 
-def parse_spec_ligands(
-    lig: pd.DataFrame, corpus, progress_callback=None, progress_every: int = 20000
-) -> tuple[dict[str, tuple], dict[str, list[str]]]:
-    """Parse every spec_gh row into (Mol, groups, formula) and index
-    which refcodes each touches."""
-    parsed: dict[str, tuple] = {}
-    refcode_to_spec_ghs: dict[str, list[str]] = {}
-    n_seen = 0
-    for _, row in lig.iterrows():
-        n_seen += 1
-        spec_gh = row["spec_gh"]
-        try:
-            trimmed_mol2, groups = _strip_metal_dummy(row["spec_mol2"])
-            mol = parse_mol2(trimmed_mol2)
-            formula = Counter(atom.GetSymbol() for atom in mol.GetAtoms())
-            parsed[spec_gh] = (mol, groups, formula)
-        except Exception:
-            pass  # this ligand just won't be a usable candidate for any refcode
-
-        for refcode in ast.literal_eval(row["spec_refcode"]):
-            refcode_to_spec_ghs.setdefault(refcode, []).append(spec_gh)
-
-        if progress_callback is not None and n_seen % progress_every == 0:
-            progress_callback("parse", n_seen, len(lig), corpus)
-
-    return parsed, refcode_to_spec_ghs
-
-
-__all__ = ["spec_mol2_to_smiles_and_donor_groups", "parse_spec_ligands"]
+__all__ = ["spec_mol2_to_smiles_and_donor_groups"]

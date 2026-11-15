@@ -9,9 +9,9 @@ from rdkit import RDLogger
 from synthmc.common.elements import covalent_radius
 from synthmc.common.environment import ligand_bulk
 from synthmc.corpus._persistence import PicklePersistable
+from synthmc.corpus._spec_parsing import parse_spec_ligands
 from synthmc.corpus.bostmc import load_complexes
 from synthmc.corpus.complex_ligands import reconstruct_ligand_multiset
-from synthmc.corpus.donor_sites import parse_spec_ligands
 
 RDLogger.DisableLog("rdApp.*")
 
