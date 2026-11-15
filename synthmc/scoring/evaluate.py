@@ -82,19 +82,14 @@ class StructureResult:
     metal_symbol: str
     ligands: list[LigandPrecedent] = field(default_factory=list)
     identifier: str = ""  # optional caller-supplied label (e.g. a CSD refcode), not used internally
-    # radius -> precedent count for this whole complex's joint donor-site environment - see
-    # environment_corpus.py. Empty dict if no EnvironmentCorpus was passed.
+    # radius -> precedent count for this whole complex's joint donor-site environment.
     full_environment: dict[int, int | None] = field(default_factory=dict)
     full_environment_and_metal: dict[int, int | None] = field(default_factory=dict)
     # radius -> how common that joint environment is, relative to every joint environment on
-    # record at that radius/metal-scope (environment_percentile - count_percentile applied to
-    # the match above, 0.0 if no match at all, since a non-match's count is 0 by definition).
-    # Same emptiness rule as full_environment above - a non-match here is a real 0.0, not None;
-    # only "never computed at all" (no EnvironmentCorpus passed) is None.
+    # record at that radius/metal-scope (0.0 if no match at all).
     full_environment_percentile: dict[int, float | None] = field(default_factory=dict)
     full_environment_and_metal_percentile: dict[int, float | None] = field(default_factory=dict)
-    # None if no StericCorpus was passed, the metal has no tabulated covalent radius, or no
-    # corpus complex shares this coordination number - see steric_corpus.py.
+    # None if the metal has no tabulated covalent radius, or no corpus complex shares this CN.
     steric: StericMatch | None = None
 
 
@@ -108,13 +103,13 @@ def _formula(symbols: list[str]) -> str:
 def evaluate_complex(
     metal: str,
     ligands: list[tuple[str, list[int]]],
-    corpus: LigandCorpus,
+    ligand_corpus: LigandCorpus,
+    environment_corpus: EnvironmentCorpus,
+    steric_corpus: StericCorpus,
     identifier: str = "",
-    environment_corpus: EnvironmentCorpus | None = None,
-    steric_corpus: StericCorpus | None = None,
 ) -> StructureResult:
     """Evaluate a TMC's `metal` and `ligands` (SMILES, binding_atoms)
-    pairs against `corpus`. Raises on an unparseable SMILES."""
+    pairs against the three corpora. Raises on an unparseable SMILES."""
     results = []
     envs: dict[int, list[str]] = {r: [] for r in RADII}
     total_bulk = 0
@@ -130,27 +125,33 @@ def evaluate_complex(
         signature = donor_signature(symbols, groups)
         fp = morgan_fingerprint(mol)
 
-        if environment_corpus is not None:
-            for group in groups:
-                for r in RADII:
-                    envs[r].append(site_environment(mol, group, r))
+        for group in groups:
+            for r in RADII:
+                envs[r].append(site_environment(mol, group, r))
 
-        if steric_corpus is not None:
-            total_bulk += ligand_bulk(mol, groups, STERIC_RADIUS)
-            cn += len(groups)
+        total_bulk += ligand_bulk(mol, groups, STERIC_RADIUS)
+        cn += len(groups)
 
-        by_ligand = find_closest_precedent(smiles, fp, corpus.by_ligand, corpus.count_distribution.get("by_ligand"))
+        by_ligand = find_closest_precedent(
+            smiles, fp, ligand_corpus.by_ligand, ligand_corpus.count_distribution.get("by_ligand")
+        )
         by_ligand_and_metal = find_closest_precedent(
-            smiles, fp, corpus.by_ligand_and_metal.get(metal), corpus.count_distribution.get("by_ligand_and_metal")
+            smiles,
+            fp,
+            ligand_corpus.by_ligand_and_metal.get(metal),
+            ligand_corpus.count_distribution.get("by_ligand_and_metal"),
         )
         by_ligand_and_mode = find_closest_precedent(
-            smiles, fp, corpus.by_ligand_and_mode.get(signature), corpus.count_distribution.get("by_ligand_and_mode")
+            smiles,
+            fp,
+            ligand_corpus.by_ligand_and_mode.get(signature),
+            ligand_corpus.count_distribution.get("by_ligand_and_mode"),
         )
         by_ligand_mode_and_metal = find_closest_precedent(
             smiles,
             fp,
-            corpus.by_ligand_mode_and_metal.get((metal, signature)),
-            corpus.count_distribution.get("by_ligand_mode_and_metal"),
+            ligand_corpus.by_ligand_mode_and_metal.get((metal, signature)),
+            ligand_corpus.count_distribution.get("by_ligand_mode_and_metal"),
         )
         levels = (by_ligand, by_ligand_and_metal, by_ligand_and_mode, by_ligand_mode_and_metal)
         precedent_score = sum(m.score if m is not None else 0.0 for m in levels) / len(levels)
@@ -172,31 +173,29 @@ def evaluate_complex(
     full_environment_and_metal: dict[int, int | None] = {}
     full_environment_percentile: dict[int, float | None] = {}
     full_environment_and_metal_percentile: dict[int, float | None] = {}
-    if environment_corpus is not None:
-        for r in RADII:
-            key = tuple(sorted(envs[r]))
-            full_environment[r] = find_environment_count(key, environment_corpus.by_environment[r])
-            full_environment_and_metal[r] = find_environment_count(
-                (metal, key), environment_corpus.by_environment_and_metal[r]
-            )
-            full_environment_percentile[r] = environment_percentile(
-                key, environment_corpus.by_environment[r], environment_corpus.count_distribution[r]
-            )
-            full_environment_and_metal_percentile[r] = environment_percentile(
-                (metal, key), environment_corpus.by_environment_and_metal[r], environment_corpus.count_distribution_and_metal[r]
-            )
+    for r in RADII:
+        key = tuple(sorted(envs[r]))
+        full_environment[r] = find_environment_count(key, environment_corpus.by_environment[r])
+        full_environment_and_metal[r] = find_environment_count(
+            (metal, key), environment_corpus.by_environment_and_metal[r]
+        )
+        full_environment_percentile[r] = environment_percentile(
+            key, environment_corpus.by_environment[r], environment_corpus.count_distribution[r]
+        )
+        full_environment_and_metal_percentile[r] = environment_percentile(
+            (metal, key), environment_corpus.by_environment_and_metal[r], environment_corpus.count_distribution_and_metal[r]
+        )
 
     steric: StericMatch | None = None
-    if steric_corpus is not None:
-        try:
-            r_metal = covalent_radius(metal)
-        except (KeyError, ValueError):
-            r_metal = None
-        if r_metal is not None:
-            normalized_bulk = total_bulk / r_metal
-            plausibility = find_steric_plausibility(normalized_bulk, cn, steric_corpus)
-            if plausibility is not None:
-                steric = StericMatch(normalized_bulk=normalized_bulk, cn=cn, plausibility=plausibility)
+    try:
+        r_metal = covalent_radius(metal)
+    except (KeyError, ValueError):
+        r_metal = None
+    if r_metal is not None:
+        normalized_bulk = total_bulk / r_metal
+        plausibility = find_steric_plausibility(normalized_bulk, cn, steric_corpus)
+        if plausibility is not None:
+            steric = StericMatch(normalized_bulk=normalized_bulk, cn=cn, plausibility=plausibility)
 
     return StructureResult(
         metal_symbol=metal,
