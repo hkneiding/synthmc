@@ -7,7 +7,7 @@ from synthmc.scoring.matching import (
     find_environment_count,
     find_steric_plausibility,
 )
-from synthmc.scoring.synthesizability import SynthesizabilityResult, score_synthesizability
+from synthmc.scoring.synthesizability import SynthesizabilityResult, score_complex, score_synthesizability
 
 __all__ = [
     "LigandPrecedent",
@@ -23,4 +23,5 @@ __all__ = [
     "find_steric_plausibility",
     "SynthesizabilityResult",
     "score_synthesizability",
+    "score_complex",
 ]

@@ -3,7 +3,10 @@ from __future__ import annotations
 import statistics
 from dataclasses import dataclass
 
-from synthmc.scoring.evaluate import StructureResult
+from synthmc.corpus.environment_corpus import EnvironmentCorpus
+from synthmc.corpus.ligand_corpus import LigandCorpus
+from synthmc.corpus.steric_corpus import StericCorpus
+from synthmc.scoring.evaluate import StructureResult, evaluate_complex
 
 
 def _fmt(x: float | None) -> str:
@@ -76,4 +79,18 @@ def score_synthesizability(structure: StructureResult) -> SynthesizabilityResult
     )
 
 
-__all__ = ["SynthesizabilityResult", "score_synthesizability"]
+def score_complex(
+    metal: str,
+    ligands: list[tuple[str, list[int]]],
+    ligand_corpus: LigandCorpus,
+    environment_corpus: EnvironmentCorpus,
+    steric_corpus: StericCorpus,
+    identifier: str = "",
+) -> SynthesizabilityResult:
+    """Evaluate `metal`/`ligands` against the three corpora and reduce the
+    result to the 3 term scores plus one overall score, in one call."""
+    structure = evaluate_complex(metal, ligands, ligand_corpus, environment_corpus, steric_corpus, identifier)
+    return score_synthesizability(structure)
+
+
+__all__ = ["SynthesizabilityResult", "score_synthesizability", "score_complex"]

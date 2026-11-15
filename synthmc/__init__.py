@@ -14,6 +14,7 @@ from synthmc.scoring import (
     StructureResult,
     SynthesizabilityResult,
     evaluate_complex,
+    score_complex,
     score_synthesizability,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "EnvironmentMatch",
     "StericResult",
     "SynthesizabilityResult",
+    "score_complex",  # the primary interface - evaluate + score a complex in one call
     "score_synthesizability",  # combines the 3 precedent terms into one overall score
     "evaluate_complex",  # the interface - chemistry already known
     "PrecedentMatch",

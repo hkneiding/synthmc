@@ -29,7 +29,7 @@ Zeise's salt, `PtCl3(η2-C2H4)`, is a square-planar Pt(II) complex with three ch
 ```python
 import pickle
 from rdkit import Chem
-from synthmc import evaluate_complex, score_synthesizability
+from synthmc import score_complex
 
 with open("ligand_corpus.pkl", "rb") as f:
     ligand_corpus = pickle.load(f)
@@ -50,15 +50,14 @@ ligands = [
     ("C(=C([H])[H])([H])[H]", [0, 1]),
 ]
 
-result = evaluate_complex(
+score_complex(
     metal, 
     ligands,
     ligand_corpus,
     environment_corpus,
     steric_corpus,
     identifier="Zeise's salt"
-)
-score_synthesizability(result).summary()
+).summary()
 ```
 
 Output:
